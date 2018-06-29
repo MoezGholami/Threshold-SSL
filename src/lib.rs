@@ -1,6 +1,4 @@
 
-extern crate secp256k1;
-
 pub mod elliptic;
 pub use elliptic::point::Point as Point;
 
