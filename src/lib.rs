@@ -11,5 +11,7 @@ pub mod arithmetic;
 // TODO: When we will have more than one type of big num library, add as features
 pub use arithmetic::big_gmp::BigInteger as BigInteger;
 
+pub mod hashing;
+
 pub mod party_1;
 pub mod party_2;
