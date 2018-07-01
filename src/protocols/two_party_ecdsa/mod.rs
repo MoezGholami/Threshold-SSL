@@ -1,3 +1,3 @@
 
-pub mod party_one;
-pub mod party_two;
+pub mod keygen_lindell17;
+pub mod sign_lindell17;
