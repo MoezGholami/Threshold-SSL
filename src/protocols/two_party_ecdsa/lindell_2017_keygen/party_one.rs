@@ -1,5 +1,6 @@
 
 use ::BigInteger as BigInt;
+
 use ::Point;
 use ::EC;
 use ::PK;
@@ -18,6 +19,8 @@ use cryptographic_primitives::commitments::traits::Commitment;
 use cryptographic_primitives::hashing::hash_sha256::HSha256;
 use cryptographic_primitives::hashing::traits::Hash;
 
+// TODO: remove the next line when unit test will be done
+#[allow(dead_code)]
 pub struct FirstMsgCommitments {
     pub pk_commitment: BigInt,
     pk_commitment_blind_factor: BigInt,
