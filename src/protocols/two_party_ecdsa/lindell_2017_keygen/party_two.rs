@@ -1,29 +1,14 @@
-use ::BigInteger as BigInt;
 
-use ::Point;
 use ::EC;
 use ::PK;
-use ::SK;
-
-const R_BYTES_SIZE : usize = 32;
 
 use elliptic::curves::traits::*;
 
-use arithmetic::traits::Modulo;
-use arithmetic::traits::Samplable;
-
-use cryptographic_primitives::commitments::hash_commitment::HashCommitment;
-use cryptographic_primitives::commitments::traits::Commitment;
-
-use cryptographic_primitives::hashing::hash_sha256::HSha256;
-use cryptographic_primitives::hashing::traits::Hash;
-
 use cryptographic_primitives::proofs::dlog_zk_protocol::*;
-use cryptographic_primitives::proofs::ProofError;
 
 #[derive(Debug)]
 pub struct FirstMsgCommitment {
-    dLog_proof : DLogProof
+    d_log_proof : DLogProof
 }
 
 impl FirstMsgCommitment {

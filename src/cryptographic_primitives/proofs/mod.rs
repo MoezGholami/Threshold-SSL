@@ -1,6 +1,5 @@
 
 use std::fmt;
-use std::iter;
 use std::error::Error;
 
 pub mod dlog_zk_protocol;
