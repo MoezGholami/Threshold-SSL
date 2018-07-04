@@ -8,7 +8,7 @@
 // The Secret Key codec: BigInt <> SecretKey
 // The Public Key codec: Point <> SecretKey
 //
-use ::BigInteger as BigInt;
+use ::BigInt;
 use ::Point;
 
 use arithmetic::traits::Converter;
@@ -17,8 +17,6 @@ use super::rand::thread_rng;
 use super::secp256k1::{ Secp256k1, SecretKey, PublicKey };
 use super::secp256k1::constants::{ GENERATOR_X, GENERATOR_Y, CURVE_ORDER };
 use super::traits::{ PublicKeyCodec, SecretKeyCodec, CurveConstCodec };
-
-use std::slice;
 
 pub type EC = Secp256k1;
 pub type SK = SecretKey;
@@ -42,16 +40,12 @@ impl SecretKeyCodec<Secp256k1> for SecretKey {
         SecretKey::new(&s, &mut thread_rng())
     }
 
-    fn from_big_uint(s: &Secp256k1, n: &BigInt) -> SecretKey {
+    fn from_big_int(s: &Secp256k1, n: &BigInt) -> SecretKey {
         SecretKey::from_slice(s, &BigInt::to_vec(n)).unwrap()
     }
 
-    fn to_big_uint(&self) -> BigInt {
-        let slice = unsafe {
-            slice::from_raw_parts(self.as_ptr(), 32)
-        };
-
-        BigInt::from(slice)
+    fn to_big_int(&self) -> BigInt {
+        BigInt::from(&self[0 .. self.len()])
     }
 }
 
@@ -114,7 +108,7 @@ mod tests {
     use elliptic::curves::secp256k1::{ PublicKey, SecretKey, Secp256k1};
     use elliptic::curves::secp256k1::constants::{GENERATOR_X, GENERATOR_Y, CURVE_ORDER};
 
-    use ::BigInteger as BigInt;
+    use ::BigInt;
 
     #[test]
     fn get_base_point_test() {
@@ -136,8 +130,8 @@ mod tests {
         let s = Secp256k1::new();
         let sk = SecretKey::new(&s, &mut thread_rng());
 
-        let sk_n = sk.to_big_uint();
-        let sk_back = SecretKey::from_big_uint(&s, &sk_n);
+        let sk_n = sk.to_big_int();
+        let sk_back = SecretKey::from_big_int(&s, &sk_n);
 
         assert_eq!(sk, sk_back);
     }

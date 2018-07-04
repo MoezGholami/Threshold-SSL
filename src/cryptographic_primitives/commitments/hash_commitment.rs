@@ -1,4 +1,4 @@
-use ::BigInteger as BigInt;
+use ::BigInt;
 
 use super::traits::Commitment;
 use super::ring::digest::{Context, SHA256};
@@ -22,7 +22,7 @@ impl Commitment for HashCommitment {
 
 #[cfg(test)]
 mod tests {
-    use ::BigInteger as BigInt;
+    use ::BigInt;
     use super::Commitment;
     use super::HashCommitment;
 
