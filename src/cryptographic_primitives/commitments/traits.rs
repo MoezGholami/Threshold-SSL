@@ -1,5 +1,5 @@
 
-use ::BigInteger as BigInt;
+use ::BigInt;
 
 pub trait Commitment {
     fn create_commitment_with_user_defined_randomness(

@@ -1,5 +1,5 @@
 
-use ::BigInteger as BigInt;
+use ::BigInt;
 
 use ::EC;
 use ::PK;
@@ -32,7 +32,7 @@ pub struct FirstMsgCommitments {
 impl FirstMsgCommitments {
     pub fn create(ec_context: &EC) -> FirstMsgCommitments {
         let mut pk = PK::to_key(&ec_context, &EC::get_base_point());
-        let sk = pk.randomize(&ec_context).to_big_uint();
+        let sk = pk.randomize(&ec_context);
 
         let d_log_proof = DLogProof::prove(&ec_context, &pk, &sk);
 

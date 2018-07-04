@@ -5,7 +5,7 @@ use super::rand::{OsRng, Rng};
 
 use std::borrow::Borrow;
 
-pub type BigInteger = Mpz;
+pub type BigInt = Mpz;
 
 impl Converter for Mpz {
     fn to_vec(value: &Mpz) -> Vec<u8> {
