@@ -1,4 +1,5 @@
-
+use paillier::*;
+use paillier::DefaultKeys;
 use cryptography_utils::EC;
 use cryptography_utils::PK;
 
@@ -13,6 +14,7 @@ pub struct FirstMsg {
 
 impl FirstMsg {
     pub fn create(ec_context: &EC) -> DLogProof {
+
         let mut pk = PK::to_key(&ec_context, &EC::get_base_point());
         let sk = pk.randomize(&ec_context);
 
