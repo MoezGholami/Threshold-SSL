@@ -2,10 +2,14 @@
 name = "th-ecdsa"
 version = "0.1.0"
 
+
 [lib]
-crate-type = ["dylib"]
+crate-type = ["lib"]
 
 [dependencies]
 cryptography-utils = { git = "https://github.com/KZen-networks/cryptography-utils" }
 paillier = { git = "https://github.com/mortendahl/rust-paillier", branch = "dev" }
+
+[dev-dependencies]
+bencher = "0.1"
 
