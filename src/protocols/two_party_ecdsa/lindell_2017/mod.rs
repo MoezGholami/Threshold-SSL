@@ -34,6 +34,14 @@ pub struct PartyOneKeyGenSecondMsg {
     pub d_log_proof: DLogProof,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct RawPartyOneKeyGenSecondMsg {
+    pub pk_commitment_blind_factor: String,
+    pub zk_pok_blind_factor: String,
+    pub public_share: RawPoint,
+    pub d_log_proof: RawDLogProof,
+}
+
 #[derive(Debug)]
 pub struct PartyOnePaillierKeyPair {
     pub ek: EncryptionKey,
@@ -76,6 +84,13 @@ pub struct PartyTwoKeyGenFirstMsg {
     pub d_log_proof: DLogProof,
     pub public_share: PK,
     secret_share: SK,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RawPartyTwoKeyGenFirstMsg {
+    pub d_log_proof: RawDLogProof,
+    pub public_share: RawPoint,
+    secret_share: String,
 }
 
 #[derive(Debug)]
