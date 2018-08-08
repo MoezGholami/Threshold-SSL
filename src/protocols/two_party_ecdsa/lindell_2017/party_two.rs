@@ -14,7 +14,6 @@ use cryptography_utils::SK;
 
 use paillier::*;
 
-use super::party_one;
 use super::structs::{Visibility, WBigInt, W, WPK, WSK};
 
 //****************** Begin: Party Two structs ******************//
@@ -143,15 +142,15 @@ impl PaillierPublic {
 impl PartialSig {
     pub fn compute(
         ec_context: &EC,
-        ek: &EncryptionKey,
-        encrypted_secret_share: &BigInt,
+        ek: &W<EncryptionKey>,
+        encrypted_secret_share: &WBigInt,
         local_share: &KeyGenFirstMsg,
         ephemeral_local_share: &KeyGenFirstMsg,
-        ephemeral_other_share: &party_one::KeyGenSecondMsg,
+        ephemeral_other_public_share: &WPK,
         message: &BigInt,
     ) -> PartialSig {
         //compute r = k2* R1
-        let mut r = ephemeral_other_share.public_share.val.clone();
+        let mut r = ephemeral_other_public_share.clone().val;
         r.mul_assign(ec_context, &ephemeral_local_share.secret_share.val)
             .expect("Failed to multiply and assign");
 
@@ -164,7 +163,7 @@ impl PartialSig {
             .invert(&SK::get_q())
             .unwrap();
         let partial_sig = rho * &SK::get_q() + BigInt::mod_mul(&k2_inv, message, &SK::get_q());
-        let c1 = Paillier::encrypt(ek, RawPlaintext::from(partial_sig));
+        let c1 = Paillier::encrypt(&ek.val, RawPlaintext::from(partial_sig));
         let v = BigInt::mod_mul(
             &k2_inv,
             &BigInt::mod_mul(
@@ -175,14 +174,14 @@ impl PartialSig {
             &SK::get_q(),
         );
         let c2 = Paillier::mul(
-            ek,
-            RawCiphertext::from(encrypted_secret_share),
+            &ek.val,
+            RawCiphertext::from(encrypted_secret_share.clone().val),
             RawPlaintext::from(v),
         );
         //c3:
         PartialSig {
             c3: WBigInt {
-                val: Paillier::add(ek, c2, c1).0.into_owned(),
+                val: Paillier::add(&ek.val, c2, c1).0.into_owned(),
                 visibility: Visibility::Public,
             },
         }
