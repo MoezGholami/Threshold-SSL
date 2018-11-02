@@ -13,4 +13,6 @@ pub mod protocols;
 pub enum Error {
     InvalidKey,
     InvalidSS,
+    InvalidCom,
+    InvalidSig,
 }
