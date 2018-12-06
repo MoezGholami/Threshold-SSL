@@ -1,10 +1,10 @@
 
-use cryptography_utils::arithmetic::traits::Samplable;
-use cryptography_utils::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
-use cryptography_utils::elliptic::curves::traits::*;
-use cryptography_utils::BigInt;
-use cryptography_utils::FE;
-use cryptography_utils::GE;
+use curv::arithmetic::traits::Samplable;
+use curv::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
+use curv::elliptic::curves::traits::*;
+use curv::BigInt;
+use curv::FE;
+use curv::GE;
 use paillier::*;
 
 use Error::{self, InvalidKey};
