@@ -69,7 +69,7 @@ pub struct Signature {
     pub r: BigInt,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Party1Private {
     x1: FE,
     paillier_priv: DecryptionKey,
