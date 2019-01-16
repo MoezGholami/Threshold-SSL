@@ -173,7 +173,7 @@ impl KeyGenSecondMsg {
         let mut flag = true;
         match party_one_pk_commitment
             == &HashCommitment::create_commitment_with_user_defined_randomness(
-                &party_one_public_share.x_coor(),
+                &party_one_public_share.bytes_compressed_to_big_int(),
                 &party_one_pk_commitment_blind_factor,
             ) {
             false => flag = false,
@@ -181,7 +181,9 @@ impl KeyGenSecondMsg {
         };
         match party_one_zk_pok_commitment
             == &HashCommitment::create_commitment_with_user_defined_randomness(
-                &party_one_d_log_proof.pk_t_rand_commitment.x_coor(),
+                &party_one_d_log_proof
+                    .pk_t_rand_commitment
+                    .bytes_compressed_to_big_int(),
                 &party_one_zk_pok_blind_factor,
             ) {
             false => flag = false,
@@ -279,7 +281,7 @@ impl PaillierPublic {
         let q_hat = party_one_pdl_second_message.decommit.q_hat.clone();
         let blindness = party_one_pdl_second_message.decommit.blindness.clone();
         let c_hat_test = HashCommitment::create_commitment_with_user_defined_randomness(
-            &q_hat.x_coor(),
+            &q_hat.bytes_compressed_to_big_int(),
             &blindness,
         );
         if c_hat.clone() == c_hat_test
@@ -337,7 +339,7 @@ impl EphKeyGenFirstMsg {
         // we use hash based commitment
         let pk_commitment_blind_factor = BigInt::sample(SECURITY_BITS);
         let pk_commitment = HashCommitment::create_commitment_with_user_defined_randomness(
-            &public_share.x_coor(),
+            &public_share.bytes_compressed_to_big_int(),
             &pk_commitment_blind_factor,
         );
 
@@ -398,7 +400,7 @@ impl PartialSig {
         let mut r: GE = ephemeral_other_public_share.clone();
         r = r.scalar_mul(&ephemeral_local_share.secret_share.get_element());
 
-        let rx = r.x_coor().mod_floor(&q);
+        let rx = r.x_coor().unwrap().mod_floor(&q);
         let rho = BigInt::sample_below(&q.pow(2));
         let k2_inv = &ephemeral_local_share
             .secret_share
