@@ -3,6 +3,7 @@
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
+extern crate subtle;
 
 extern crate centipede;
 extern crate curv;
