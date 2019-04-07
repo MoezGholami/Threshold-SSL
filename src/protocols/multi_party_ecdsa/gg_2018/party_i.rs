@@ -66,6 +66,7 @@ pub struct SharedKeys {
     pub x_i: FE,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct SignKeys {
     pub w_i: FE,
     pub g_w_i: GE,
