@@ -45,6 +45,10 @@ int main(int argc, char **argv) {
 }
 
 void setup(BIO **bio_err) {
+    OpenSSL_add_all_algorithms();
+    OpenSSL_add_all_ciphers();
+    OpenSSL_add_all_digests();
+
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
     *bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 }
