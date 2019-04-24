@@ -92,7 +92,7 @@ bool write_digest_to_output(const unsigned char *dgst, int dgst_len) {
     for(int i = 0; i < dgst_len; i++) {
         t = dgst[i];
         t = t & 0xFF;
-        if(fprintf(f, "0x%02X", t) <= 0)
+        if(fprintf(f, "%02X", t) <= 0)
             return false;
     }
     if(fprintf(f, "\n") <= 0)
