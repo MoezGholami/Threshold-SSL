@@ -1,2 +1,2 @@
 #!/bin/bash
-CURV="secp521r1"
+CURV="secp256k1"
