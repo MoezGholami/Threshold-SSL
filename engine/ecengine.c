@@ -54,8 +54,8 @@ ECDSA_METHOD *setup_ecdsa_method(void) {
 ECDSA_SIG *mozecengine_ecdsa_sign (const unsigned char *dgst, int dgst_len,
         const BIGNUM *kinv, const BIGNUM *rp,
         EC_KEY *key_template) {
-    printf("Mozecengine ecdsa sign function ...\n");
-    printf("The passed key is only a template. Its content except its curve name is never used.");
+    printf("INFO: Mozecengine ecdsa sign function ...\n");
+    printf("INFO: The passed key is only a template. Its content except its curve name is never used.");
     if(!check_paramethers(dgst_len, kinv, rp, key_template)) {
         fprintf(stderr, "Aborting signature creation due to bad input arguments.");
         return false;
