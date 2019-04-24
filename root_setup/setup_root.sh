@@ -6,7 +6,6 @@
 # If it's not phony, the parties information should be ready too
 
 . ../constants.sh
-PHONY=true
 
 set -e
 
