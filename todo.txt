@@ -1,3 +1,4 @@
+* people must know what they are signing. Should we serialize the certificate if it has random bits even outside of the signature?
 * Where is the public key?
 * finish the implementations
 * master the rust codes
