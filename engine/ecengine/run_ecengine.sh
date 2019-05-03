@@ -11,8 +11,9 @@ openssl engine -t -c `pwd`/ecengine.so
 
 set +e
 
+frozen_time="2010-01-02 22:33:44"
 for i in $(seq 1 100);
 do
-    openssl req -engine `pwd`/ecengine.so -x509 -new -key mozroot.key -sha256 -days 3660 -out mozrootca.crt -passin pass:moez -subj "/C=IR/ST=Tehran/L=Tehran/O=Sparkling Network/OU=Security Department/CN=moezhome.ir/emailAddress=a_moezz@moezhome.ir" -set_serial 0xdbb4cfd2b11b4926 -rand ecengine.c || true;
+    faketime "$frozen_time" openssl req -engine `pwd`/ecengine.so -x509 -new -key mozroot.key -sha256 -days 3660 -out mozrootca.crt -passin pass:moez -subj "/C=IR/ST=Tehran/L=Tehran/O=Moez Home/OU=Security Department/CN=moezhome.ir/emailAddress=a_moezz@moezhome.ir" -set_serial 0xdbb4cfd2b11b4926 -rand ecengine.c
     cat digest_pipe >> hashs.txt;
 done
