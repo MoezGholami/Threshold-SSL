@@ -7,4 +7,6 @@ set -e
 
 gcc $ossl_include -fPIC -o hello_engine.o -c hello.c
 gcc $all_ossl_flags -shared -o hello_engine.so hello_engine.o
+gcc $all_ossl_flags hello_client.c -o client.out
+SO_PATH="$(pwd)/hello_engine.so" ./client.out
 openssl engine -t -c `pwd`/hello_engine.so

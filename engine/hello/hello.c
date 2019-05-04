@@ -1,11 +1,7 @@
 #include <stdio.h>
 #include <openssl/engine.h>
+#include "constants.h"
 
-#define     true            1
-#define     false           0
-
-static const char *engine_id    = "mozengine";
-static const char *engine_name  = "a hello world engine for demonstration purposes.";
 static int bind(ENGINE *e, const char *id) {
     if (!ENGINE_set_id(e, engine_id)) {
         fprintf(stderr, "ENGINE_set_id failed\n");
