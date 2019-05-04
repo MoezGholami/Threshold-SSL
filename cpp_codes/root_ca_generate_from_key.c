@@ -1,20 +1,4 @@
-/*
- * This program intends to simulate the following terminal command: 
- * "openssl req -x509 -new -nodes -key mozroot.key -sha256 -days 3660 -out mozrootca.crt"
- * All file references and passphrases are static for the sake of simplicity.
- *
- */
-
-#define     ROOT_KEY_FILE       "mozroot.key"
-#define     ROOT_KEY_PASS       "moez"
-#define     CERT_OUTPUT_FILE    "mozrootca.crt"
-
-typedef     char    bool;
-#define     true            1
-#define     false           0
-#define     NULL            0
-
-
+#include "constants.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -23,11 +7,17 @@ typedef     char    bool;
 #include <openssl/x509v3.h>
 #include <openssl/engine.h>
 
+int main(int argc, char *argv[]);
 void setup(BIO **bio_err);
 bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err);
+    bool load_private_key(EVP_PKEY **pkey, BIO *bio_err);
+    bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int days);
+        int add_extensions(X509 *cert, BIO *bio_err);
+        int add_ext(X509 *cert, int nid, char *value);
+    bool writeout_certificate_file(X509 *x509, BIO *bio_err);
 void teardown(X509 *x509, EVP_PKEY *pkey, BIO *bio_err);
 
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
     BIO *bio_err;
     X509 *x509=NULL;
     EVP_PKEY *pkey=NULL;
@@ -53,15 +43,11 @@ void setup(BIO **bio_err) {
     *bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 }
 
-bool load_private_key(EVP_PKEY **pkey, BIO *bio_err);
-bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, int bits, int serial, int days);
-bool writeout_certificate_file(X509 *x509, BIO *bio_err);
-
 bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err) {
     if (load_private_key(pkey, bio_err) == false)
         return false;
 
-    if (mkcert(x509, *pkey, bio_err, 512, 123, 365) == false) {
+    if (mkcert(x509, *pkey, bio_err, SERIAL, DAYS) == false) {
         BIO_printf(bio_err, "Could not create the certificate\n");
         return false;
     }
@@ -94,8 +80,7 @@ bool load_private_key(EVP_PKEY **pkey, BIO *bio_err) {
     return true;
 }
 
-int add_ext(X509 *cert, int nid, char *value);
-bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, int bits, int serial, int days) {
+bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int days) {
     X509 *x;
     X509_NAME *name=NULL;
 
@@ -125,24 +110,8 @@ bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, int bits, int serial, int 
      */
     X509_set_issuer_name(x,name);
 
-    /* Add various extensions: standard extensions */
-    add_ext(x, NID_basic_constraints, (char *)"critical,CA:TRUE");
-    add_ext(x, NID_key_usage, (char *)"critical,keyCertSign,cRLSign");
-
-    add_ext(x, NID_subject_key_identifier, (char *)"hash");
-
-    /* Some Netscape specific extensions */
-    add_ext(x, NID_netscape_cert_type, (char *)"sslCA");
-
-    add_ext(x, NID_netscape_comment, (char *)"example comment extension");
-
-
-    /* Maybe even add our own extension based on existing */
-    {
-        int nid;
-        nid = OBJ_create("1.2.3.4", "MyAlias", "My Test Alias Extension");
-        X509V3_EXT_add_alias(nid, NID_netscape_comment);
-        add_ext(x, nid, (char *)"example comment alias");
+    if(!add_extensions(x, bio_err)) {
+        BIO_printf(bio_err, "Error in adding extensions to the certificate.\n");
     }
 
     if (X509_sign(x,pk,EVP_sha256()) == false) {
@@ -152,6 +121,22 @@ bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, int bits, int serial, int 
 
     *x509p=x;
     return true;
+}
+
+int add_extensions(X509 *cert, BIO *bio_err) {
+    if(false) {}
+    else if(! add_ext(cert, NID_subject_key_identifier, (char *)"hash"))
+        BIO_printf(bio_err, "Error in adding subject key identifier extension the certificate.\n");
+    else if(! add_ext(cert, NID_authority_key_identifier, (char *)"keyid:always"))
+        BIO_printf(bio_err, "Error in adding authority key identifier extension the certificate.\n");
+    else if(! add_ext(cert, NID_basic_constraints, (char *)"critical,CA:TRUE"))
+        BIO_printf(bio_err, "Error in adding basic constraints extension the certificate.\n");
+    else if(! add_ext(cert, NID_key_usage, "critical,keyCertSign,cRLSign"))
+        BIO_printf(bio_err, "Error in adding key usage extension the certificate.\n");
+    else
+        return true;
+
+    return false;
 }
 
 /* Add extension using V3 code: we can set the config file as NULL
