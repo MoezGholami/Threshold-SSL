@@ -57,16 +57,16 @@ ECDSA_SIG *mozecengine_ecdsa_sign (const unsigned char *dgst, int dgst_len,
     printf("INFO: Mozecengine ecdsa sign function ...\n");
     printf("INFO: The passed key is only a template. Its content except its curve name is never used.\n");
     if(!check_paramethers(dgst_len, kinv, rp, key_template)) {
-        fprintf(stderr, "Aborting signature creation due to bad input arguments.");
+        fprintf(stderr, "Aborting signature creation due to bad input arguments.\n");
         return false;
     }
     if(!write_digest_to_output(dgst, dgst_len)) {
-        fprintf(stderr, "Could not write out the digest to the output to sign.");
+        fprintf(stderr, "Could not write out the digest to the output to sign.\n");
         return false;
     }
     ECDSA_SIG *result = NULL;
     if(!read_signature_from_input(&result)) {
-        fprintf(stderr, "Could not read the signature from the input file.");
+        fprintf(stderr, "Could not read the signature from the input file.\n");
         return false;
     }
     return result;
@@ -74,11 +74,11 @@ ECDSA_SIG *mozecengine_ecdsa_sign (const unsigned char *dgst, int dgst_len,
 
 bool check_paramethers(int dgst_len, const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *key_template) {
     if(dgst_len <= 0)
-        fprintf(stderr, "The digest length must be positive");
+        fprintf(stderr, "The digest length must be positive.\n");
     else if(kinv || rp)
-        fprintf(stderr, "Our algorithm inherently cannot support know **kinv** and **rp**. It's secretly shared.");
+        fprintf(stderr, "Our algorithm inherently cannot support know **kinv** and **rp**. It's secretly shared.\n");
     else if(EC_GROUP_get_curve_name(EC_KEY_get0_group(key_template)) != NID_secp256k1)
-        fprintf(stderr, "Currently we only support the secp256k1 curve");
+        fprintf(stderr, "Currently we only support the secp256k1 curve.\n");
     else
         return true;
     return false;
