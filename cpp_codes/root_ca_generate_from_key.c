@@ -139,8 +139,6 @@ bool add_extensions(X509 *cert, BIO *bio_err) {
         BIO_printf(bio_err, "Error in adding authority key identifier extension the certificate.\n");
     else if(! add_ext(cert, NID_basic_constraints, (char *)"critical,CA:TRUE"))
         BIO_printf(bio_err, "Error in adding basic constraints extension the certificate.\n");
-    //else if(! add_ext(cert, NID_key_usage, "critical,keyCertSign,cRLSign")) // TODO: figure out if needed
-    //    BIO_printf(bio_err, "Error in adding key usage extension the certificate.\n");
     else
         return true;
 
