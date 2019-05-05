@@ -1,6 +1,7 @@
 #include "constants.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <openssl/pem.h>
 #include <openssl/conf.h>
@@ -11,9 +12,11 @@ int main(int argc, char *argv[]);
 void setup(BIO **bio_err);
 bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err);
     bool load_private_key(EVP_PKEY **pkey, BIO *bio_err);
-    bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int days);
-        int add_extensions(X509 *cert, BIO *bio_err);
-        int add_ext(X509 *cert, int nid, char *value);
+    bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int days, const char *subject);
+        bool parse_and_add_subject_line(X509 *cert, const char *subject, BIO *bio_err);
+            X509_NAME *parse_name(const char *cp, long chtype, int canmulti, BIO *bio_err);
+        bool add_extensions(X509 *cert, BIO *bio_err);
+        bool add_ext(X509 *cert, int nid, char *value);
     bool writeout_certificate_file(X509 *x509, BIO *bio_err);
 void teardown(X509 *x509, EVP_PKEY *pkey, BIO *bio_err);
 
@@ -47,7 +50,7 @@ bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err) {
     if (load_private_key(pkey, bio_err) == false)
         return false;
 
-    if (mkcert(x509, *pkey, bio_err, SERIAL, DAYS) == false) {
+    if (mkcert(x509, *pkey, bio_err, SERIAL, DAYS, SUBJECT_LINE) == false) {
         BIO_printf(bio_err, "Could not create the certificate\n");
         return false;
     }
@@ -80,9 +83,8 @@ bool load_private_key(EVP_PKEY **pkey, BIO *bio_err) {
     return true;
 }
 
-bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int days) {
+bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int days, const char *subject) {
     X509 *x;
-    X509_NAME *name=NULL;
 
     if ((x=X509_new()) == NULL) {
         BIO_printf(bio_err, "Error in creating X509 data structure.\n");
@@ -94,24 +96,16 @@ bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int 
     X509_gmtime_adj(X509_get_notBefore(x),0);
     X509_gmtime_adj(X509_get_notAfter(x),(long)60*60*24*days);
     X509_set_pubkey(x,pk);
-
-    name=X509_get_subject_name(x);
-
-    /* This function creates and adds the entry, working out the
-     * correct string type and performing checks on its length.
-     * Normally we'd check the return value for errors...
-     */
-    X509_NAME_add_entry_by_txt(name,"C",
-            MBSTRING_ASC, (unsigned char *)"UK", -1, -1, 0);
-    X509_NAME_add_entry_by_txt(name,"CN",
-            MBSTRING_ASC, (unsigned char *)"OpenSSL Group", -1, -1, 0);
-    /* Its self signed so set the issuer name to be the same as the
-     * subject.
-     */
-    X509_set_issuer_name(x,name);
+    if(!parse_and_add_subject_line(x, subject, bio_err)) {
+        BIO_printf(bio_err, "Error in parsing the subject line.\n");
+        return false;
+    }
+    //self sign the certificate
+    X509_set_issuer_name(x,X509_get_subject_name(x));
 
     if(!add_extensions(x, bio_err)) {
         BIO_printf(bio_err, "Error in adding extensions to the certificate.\n");
+        return false;
     }
 
     if (X509_sign(x,pk,EVP_sha256()) == false) {
@@ -123,7 +117,21 @@ bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int 
     return true;
 }
 
-int add_extensions(X509 *cert, BIO *bio_err) {
+bool parse_and_add_subject_line(X509 *cert, const char *subject, BIO *bio_err) {
+    X509_NAME *name = parse_name(subject, MBSTRING_ASC, 1, bio_err);
+    if(! name) {
+        BIO_printf(bio_err, "Error in parsing subject name.\n");
+        return false;
+    }
+    if(! X509_set_subject_name(cert, name) ) {
+        BIO_printf(bio_err, "Error in setting subject name.\n");
+        return false;
+    }
+    X509_NAME_free(name);
+    return true;
+}
+
+bool add_extensions(X509 *cert, BIO *bio_err) {
     if(false) {}
     else if(! add_ext(cert, NID_subject_key_identifier, (char *)"hash"))
         BIO_printf(bio_err, "Error in adding subject key identifier extension the certificate.\n");
@@ -131,8 +139,8 @@ int add_extensions(X509 *cert, BIO *bio_err) {
         BIO_printf(bio_err, "Error in adding authority key identifier extension the certificate.\n");
     else if(! add_ext(cert, NID_basic_constraints, (char *)"critical,CA:TRUE"))
         BIO_printf(bio_err, "Error in adding basic constraints extension the certificate.\n");
-    else if(! add_ext(cert, NID_key_usage, "critical,keyCertSign,cRLSign"))
-        BIO_printf(bio_err, "Error in adding key usage extension the certificate.\n");
+    //else if(! add_ext(cert, NID_key_usage, "critical,keyCertSign,cRLSign")) // TODO: figure out if needed
+    //    BIO_printf(bio_err, "Error in adding key usage extension the certificate.\n");
     else
         return true;
 
@@ -142,7 +150,7 @@ int add_extensions(X509 *cert, BIO *bio_err) {
 /* Add extension using V3 code: we can set the config file as NULL
  * because we wont reference any other sections.
  */
-int add_ext(X509 *cert, int nid, char *value) {
+bool add_ext(X509 *cert, int nid, char *value) {
     X509_EXTENSION *ex;
     X509V3_CTX ctx;
     /* This sets the 'context' of the extensions. */
@@ -190,4 +198,92 @@ void teardown(X509 *x509, EVP_PKEY *pkey, BIO *bio_err) {
 
     CRYPTO_mem_leaks(bio_err);
     BIO_free(bio_err);
+}
+
+// brought (copy + minor modification) from openssl source code
+X509_NAME *parse_name(const char *cp, long chtype, int canmulti, BIO *bio_err) {
+    int nextismulti = 0;
+    char *work;
+    X509_NAME *n;
+
+    if (*cp++ != '/') {
+        BIO_printf(bio_err,
+                   "name is expected to be in the format "
+                   "/type0=value0/type1=value1/type2=... where characters may "
+                   "be escaped by \\. This name is not in that format: '%s'\n",
+                   --cp);
+        return NULL;
+    }
+
+    n = X509_NAME_new();
+    if (n == NULL)
+        return NULL;
+    work = OPENSSL_strdup(cp);
+    if (work == NULL) {
+        BIO_printf(bio_err, "Error copying name input\n");
+        goto err;
+    }
+
+    while (*cp) {
+        char *bp = work;
+        char *typestr = bp;
+        unsigned char *valstr;
+        int nid;
+        int ismulti = nextismulti;
+        nextismulti = 0;
+
+        /* Collect the type */
+        while (*cp && *cp != '=')
+            *bp++ = *cp++;
+        if (*cp == '\0') {
+            BIO_printf(bio_err, "Hit end of string before finding the '='\n");
+            goto err;
+        }
+        *bp++ = '\0';
+        ++cp;
+
+        /* Collect the value. */
+        valstr = (unsigned char *)bp;
+        for (; *cp && *cp != '/'; *bp++ = *cp++) {
+            if (canmulti && *cp == '+') {
+                nextismulti = 1;
+                break;
+            }
+            if (*cp == '\\' && *++cp == '\0') {
+                BIO_printf(bio_err, "escape character at end of string\n");
+                goto err;
+            }
+        }
+        *bp++ = '\0';
+
+        /* If not at EOS (must be + or /), move forward. */
+        if (*cp)
+            ++cp;
+
+        /* Parse */
+        nid = OBJ_txt2nid(typestr);
+        if (nid == NID_undef) {
+            BIO_printf(bio_err, "Skipping unknown attribute \"%s\"\n", typestr);
+            continue;
+        }
+        if (*valstr == '\0') {
+            BIO_printf(bio_err, "No value provided for Subject Attribute %s, skipped\n", typestr);
+            continue;
+        }
+        if (!X509_NAME_add_entry_by_NID(n, nid, chtype,
+                                        valstr, strlen((char *)valstr),
+                                        -1, ismulti ? -1 : 0)) {
+            BIO_printf(bio_err, "Error adding name attribute \"/%s=%s\"\n",
+                       typestr ,valstr);
+            goto err;
+        }
+    }
+
+    OPENSSL_free(work);
+    return n;
+
+ err:
+    X509_NAME_free(n);
+    OPENSSL_free(work);
+    return NULL;
 }
