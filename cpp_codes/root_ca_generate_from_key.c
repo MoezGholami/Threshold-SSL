@@ -12,7 +12,8 @@ int main(int argc, char *argv[]);
 void setup(BIO **bio_err);
 bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err);
     bool load_private_key(EVP_PKEY **pkey, BIO *bio_err);
-    bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int days, const char *subject);
+    bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, const char *start_date_asn1, const char *end_date_asn1,
+                unsigned long serial, const char *subject, bool X509_output_set_v3);
         bool parse_and_add_subject_line(X509 *cert, const char *subject, BIO *bio_err);
             X509_NAME *parse_name(const char *cp, long chtype, int canmulti, BIO *bio_err);
         bool add_extensions(X509 *cert, BIO *bio_err);
@@ -50,7 +51,7 @@ bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err) {
     if (load_private_key(pkey, bio_err) == false)
         return false;
 
-    if (mkcert(x509, *pkey, bio_err, SERIAL, DAYS, SUBJECT_LINE) == false) {
+    if (mkcert(x509, *pkey, bio_err, START_DATE_ASN1, END_DATE_ASN1, SERIAL, SUBJECT_LINE, OUTPUT_X509_V3) == false) {
         BIO_printf(bio_err, "Could not create the certificate\n");
         return false;
     }
@@ -83,7 +84,8 @@ bool load_private_key(EVP_PKEY **pkey, BIO *bio_err) {
     return true;
 }
 
-bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int days, const char *subject) {
+bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, const char *start_date_asn1, const char *end_date_asn1,
+        unsigned long serial, const char *subject, bool X509_output_set_v3) {
     X509 *x;
 
     if ((x=X509_new()) == NULL) {
@@ -91,10 +93,18 @@ bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, unsigned long serial, int 
         return false;
     }
 
-    X509_set_version(x,3);
+    if(X509_output_set_v3)
+        X509_set_version(x,3);
     ASN1_INTEGER_set(X509_get_serialNumber(x),serial);
-    X509_gmtime_adj(X509_get_notBefore(x),0);
-    X509_gmtime_adj(X509_get_notAfter(x),(long)60*60*24*days);
+    if (! ASN1_TIME_set_string(X509_get_notBefore(x), start_date_asn1)) {
+        BIO_printf(bio_err, "Error in setting the start date: %s\n", start_date_asn1);
+        return false;
+    }
+    if (! ASN1_TIME_set_string(X509_get_notAfter(x), end_date_asn1)) {
+        BIO_printf(bio_err, "Error in setting the end date: %s\n", end_date_asn1);
+        return false;
+    }
+
     X509_set_pubkey(x,pk);
     if(!parse_and_add_subject_line(x, subject, bio_err)) {
         BIO_printf(bio_err, "Error in parsing the subject line.\n");
