@@ -9,6 +9,8 @@
 #define     SERIAL              (0x7000000000000001)
 #define     SUBJECT_LINE        "/C=IR/ST=Tehran/L=Tehran/O=Moez Home/OU=Security Department/CN=moezhome.ir/emailAddress=a_moezz@moezhome.ir"
 #define     OUTPUT_X509_V3      (false)
+#define     LOAD_ECENGINE       (true)
+#define     ECENGINE_LOCATION   ("/tmp/ecengine.so")
 
 typedef     char    bool;
 #define     true            1

@@ -9,7 +9,7 @@
 #include <openssl/engine.h>
 
 int main(int argc, char *argv[]);
-void setup(BIO **bio_err);
+bool setup(BIO **bio_err);
 bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err);
     bool load_private_key(EVP_PKEY **pkey, BIO *bio_err);
     bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, const char *start_date_asn1, const char *end_date_asn1,
@@ -26,7 +26,10 @@ int main(int argc, char *argv[]) {
     X509 *x509=NULL;
     EVP_PKEY *pkey=NULL;
 
-    setup(&bio_err);
+    if(!setup(&bio_err)) {
+        fprintf(stderr, "Could not setup Openssl. Aborting ...\n");
+        return 1;
+    }
     bool result = make_certificate(&x509, &pkey, bio_err);
     if(result == false) {
         BIO_printf(bio_err, "The operation failed due to previous errors\n");
@@ -38,13 +41,26 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void setup(BIO **bio_err) {
+bool setup(BIO **bio_err) {
     OpenSSL_add_all_algorithms();
     OpenSSL_add_all_ciphers();
     OpenSSL_add_all_digests();
 
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
     *bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
+    if(LOAD_ECENGINE) {
+        ENGINE_load_dynamic();
+        ENGINE *e = ENGINE_by_id(ECENGINE_LOCATION);
+        if( e == NULL ) {
+            BIO_printf(*bio_err, "Could not find the engine: %s\n", ECENGINE_LOCATION);
+            return false;
+        }
+	    if(!ENGINE_set_default_ECDSA(e)) {
+            BIO_printf(*bio_err, "Could not register the engine for ECDSA operation.\n");
+            return false;
+        }
+    }
+    return true;
 }
 
 bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err) {
