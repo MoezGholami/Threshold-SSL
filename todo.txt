@@ -1,6 +1,7 @@
-* people must know what they are signing. Should we serialize the certificate if it has random bits even outside of the signature?
 * Where is the public key?
 * finish the implementations
 * master the rust codes
 * Make sure that changing the signature is consistent, otherwise the idea is to fake an inconsistent private key
 * Testing?
+* use the curve library features dynamically
+* all constants should be put in a single json file. nothing else
