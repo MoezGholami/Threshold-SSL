@@ -1,0 +1,18 @@
+{
+    "curve" :           "secp256k1",
+    "threshold_n" :     8,
+    "threshold_t" :     4,
+    "serial" :          "0x7000000000000001",
+    "startDateASN1" :   "20190101000000Z",
+    "endDateASN1" :     "20290101000000Z",
+    "x509v3" :          true,
+    "subject" : {
+        "country" :                 "IR",
+        "state" :                   "Tehran",
+        "locality" :                "Tehran",
+        "organization" :            "Moez Home",
+        "organization_unit_name" :  "Security Department",
+        "common_name" :             "moez.dev",
+        "email" :                   "a_moezz@moez.dev"
+    }
+}

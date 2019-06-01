@@ -1,4 +1,3 @@
-#include "constants.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,134 +7,234 @@
 #include <openssl/x509v3.h>
 #include <openssl/engine.h>
 
+
+typedef     char    bool;
+#define     true            1
+#define     false           0
+#ifndef     NULL
+#define     NULL            0
+#endif
+
+const char *PARAMETERS_FILE_PATH = ".c_parameters.txt";
+
+typedef struct _params {
+    char *SBJ_C;
+    char *SBJ_ST;
+    char *SBJ_L;
+    char *SBJ_O;
+    char *SBJ_OU;
+    char *SBJ_CN;
+    char *SBJ_EMAIL;
+    char *START_DATE_ASN1;
+    char *END_DATE_ASN1;
+    unsigned long SERIAL;
+
+    bool OUTPUT_X509_V3;
+    char *ECENGINE_LOCATION;
+    char *PUKEY_PATH;
+    char *OUTPUT_CERT_LOCATION;
+    bool LOAD_ECENGINE;
+    bool DEBUG;
+} parameters;
+
 int main(int argc, char *argv[]);
-bool setup(BIO **bio_err);
-bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err);
-    bool load_private_key(EVP_PKEY **pkey, BIO *bio_err);
-    bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, const char *start_date_asn1, const char *end_date_asn1,
-                unsigned long serial, const char *subject, bool X509_output_set_v3);
-        bool parse_and_add_subject_line(X509 *cert, const char *subject, BIO *bio_err);
-            X509_NAME *parse_name(const char *cp, long chtype, int canmulti, BIO *bio_err);
+bool load_parameters(parameters *p);
+    ssize_t getline_trim(char **lineptr, size_t *n, FILE *f);
+    bool read_boolean_pointer(FILE *f, bool *result);
+    bool consume_line_till_end(FILE *f);
+bool setup(BIO **bio_err, parameters *p);
+bool make_certificate(X509 **x509, EVP_PKEY **pukey, BIO *bio_err, parameters *p);
+    bool load_public_key(EVP_PKEY **pukey, BIO *bio_err, parameters *p);
+    bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, parameters *p);
+        bool parse_and_add_subject_line(X509 *cert, parameters *p, BIO *bio_err);
         bool add_extensions(X509 *cert, BIO *bio_err);
         bool add_ext(X509 *cert, int nid, char *value);
-    bool writeout_certificate_file(X509 *x509, BIO *bio_err);
-void teardown(X509 *x509, EVP_PKEY *pkey, BIO *bio_err);
+    bool writeout_certificate_file(X509 *x509, BIO *bio_err, parameters *p);
+void teardown(X509 *x509, EVP_PKEY *pukey, BIO *bio_err, parameters *p);
+    void free_parameters(parameters *p);
+void debug_print_parameters(parameters *p);
 
 int main(int argc, char *argv[]) {
     BIO *bio_err;
     X509 *x509=NULL;
-    EVP_PKEY *pkey=NULL;
+    EVP_PKEY *pukey=NULL;
+    parameters params;
 
-    if(!setup(&bio_err)) {
-        fprintf(stderr, "Could not setup Openssl. Aborting ...\n");
+    if(!load_parameters(&params)) {
+        fprintf(stderr, "ERROR: Could not load parameters from file %s. Aborting ...\n", PARAMETERS_FILE_PATH);
         return 1;
     }
-    bool result = make_certificate(&x509, &pkey, bio_err);
+    if(params.DEBUG)
+        debug_print_parameters(&params);
+
+    if(!setup(&bio_err, &params)) {
+        fprintf(stderr, "ERROR: Could not setup Openssl. Aborting ...\n");
+        return 1;
+    }
+    bool result = make_certificate(&x509, &pukey, bio_err, &params);
     if(result == false) {
-        BIO_printf(bio_err, "The operation failed due to previous errors\n");
-        teardown(x509, pkey, bio_err);
+        BIO_printf(bio_err, "ERROR: The operation failed due to previous errors\n");
+        teardown(x509, pukey, bio_err, &params);
         return 1;
     }
-    teardown(x509, pkey, bio_err);
+    teardown(x509, pukey, bio_err, &params);
 
     return 0;
 }
 
-bool setup(BIO **bio_err) {
+bool load_parameters(parameters *p) {
+    size_t limit = 0;
+    char *temp_buffer=0;
+    FILE *f = fopen(PARAMETERS_FILE_PATH, "r");
+    for(char *c = (char*) p; c < sizeof(*p) + (char*)p; c++)
+        *c = 0;
+    if(!f)
+        return false;
+
+    if(fscanf(f, "0x%lux", &(p->SERIAL)) < 1)
+        return false;
+    if(!consume_line_till_end(f)) return false;
+
+    if(getline_trim(&(p->START_DATE_ASN1), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->END_DATE_ASN1), &limit, f) <= 0) return false;
+
+    if(!read_boolean_pointer(f, &(p->OUTPUT_X509_V3))) return false;
+    if(getline_trim(&(p->SBJ_C), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->SBJ_ST), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->SBJ_L), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->SBJ_O), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->SBJ_OU), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->SBJ_CN), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->SBJ_EMAIL), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->ECENGINE_LOCATION), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->PUKEY_PATH), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->OUTPUT_CERT_LOCATION), &limit, f) <= 0) return false;
+    if(!read_boolean_pointer(f, &(p->LOAD_ECENGINE))) return false;
+    if(!read_boolean_pointer(f, &(p->DEBUG))) return false;
+
+    return true;
+}
+
+ssize_t getline_trim(char **lineptr, size_t *n, FILE *f) {
+    ssize_t length = getline(lineptr, n, f);
+    if(length>0)
+        (*lineptr)[length-1] = '\0';
+    return length;
+}
+
+bool read_boolean_pointer(FILE *f, bool *result) {
+    int bool_as_int = 0;
+    if(fscanf(f, "%i", &bool_as_int) < 1)
+        return false;
+    if(!consume_line_till_end(f))
+        return false;
+    *result = !(!bool_as_int);
+    return true;
+}
+
+bool consume_line_till_end(FILE *f) {
+    char *temp_buffer = 0;
+    size_t limit = 0;
+    if(getline(&temp_buffer, &limit, f) <= 0)
+        return false;
+    free(temp_buffer);
+    return true;
+}
+
+bool setup(BIO **bio_err, parameters *p) {
     OpenSSL_add_all_algorithms();
     OpenSSL_add_all_ciphers();
     OpenSSL_add_all_digests();
 
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
     *bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
-    if(LOAD_ECENGINE) {
+    if(p->LOAD_ECENGINE) {
         ENGINE_load_dynamic();
-        ENGINE *e = ENGINE_by_id(ECENGINE_LOCATION);
+        ENGINE *e = ENGINE_by_id(p->ECENGINE_LOCATION);
         if( e == NULL ) {
-            BIO_printf(*bio_err, "Could not find the engine: %s\n", ECENGINE_LOCATION);
+            BIO_printf(*bio_err, "ERROR: Could not find the engine: %s\n", p->ECENGINE_LOCATION);
             return false;
         }
 	    if(!ENGINE_set_default_ECDSA(e)) {
-            BIO_printf(*bio_err, "Could not register the engine for ECDSA operation.\n");
+            BIO_printf(*bio_err, "ERROR: Could not register the engine for ECDSA operation.\n");
             return false;
         }
     }
     return true;
 }
 
-bool make_certificate(X509 **x509, EVP_PKEY **pkey, BIO *bio_err) {
-    if (load_private_key(pkey, bio_err) == false)
+bool make_certificate(X509 **x509, EVP_PKEY **pukey, BIO *bio_err, parameters *p) {
+    if (load_public_key(pukey, bio_err, p) == false)
         return false;
 
-    if (mkcert(x509, *pkey, bio_err, START_DATE_ASN1, END_DATE_ASN1, SERIAL, SUBJECT_LINE, OUTPUT_X509_V3) == false) {
-        BIO_printf(bio_err, "Could not create the certificate\n");
+    if (mkcert(x509, *pukey, bio_err, p) == false) {
+        BIO_printf(bio_err, "ERROR: Could not create the certificate\n");
         return false;
     }
 
-    return writeout_certificate_file(*x509, bio_err);
+    return writeout_certificate_file(*x509, bio_err, p);
 }
 
-bool load_private_key(EVP_PKEY **pkey, BIO *bio_err) {
+bool load_public_key(EVP_PKEY **pukey, BIO *bio_err, parameters *p) {
     EVP_PKEY *pk;
     FILE    *fp;
 
     if (! (pk=EVP_PKEY_new())) {
-        BIO_printf(bio_err, "Error in creating private key data structure.\n");
+        BIO_printf(bio_err, "ERROR: Error in creating private key data structure.\n");
         return false;
     }
-    if (! (fp = fopen (ROOT_KEY_FILE, "r"))) {
-        BIO_printf(bio_err, "Error reading CA private key file.\n");
+    if (! (fp = fopen (p->PUKEY_PATH, "r"))) {
+        BIO_printf(bio_err, "ERROR: Error reading CA private key file.\n");
         return false;
     }
-    if (! (pk = PEM_read_PrivateKey( fp, NULL, NULL, ROOT_KEY_PASS))) {
-        BIO_printf(bio_err, "Error importing key content from file.\n");
+    if (! (pk = PEM_read_PrivateKey( fp, NULL, NULL, NULL))) { // TODO: Read public key instead
+        BIO_printf(bio_err, "ERROR: Error importing key content from file.\n");
         return false;
     }
     if (fclose(fp)) {
-        BIO_printf(bio_err, "Error in closing key content file.\n");
+        BIO_printf(bio_err, "ERROR: Error in closing key content file.\n");
         return false;
     }
 
-    *pkey = pk;
+    *pukey = pk;
     return true;
 }
 
-bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, const char *start_date_asn1, const char *end_date_asn1,
-        unsigned long serial, const char *subject, bool X509_output_set_v3) {
+bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, parameters *p) {
     X509 *x;
 
     if ((x=X509_new()) == NULL) {
-        BIO_printf(bio_err, "Error in creating X509 data structure.\n");
+        BIO_printf(bio_err, "ERROR: Error in creating X509 data structure.\n");
         return false;
     }
 
-    if(X509_output_set_v3)
+    if(p->OUTPUT_X509_V3)
         X509_set_version(x,3);
-    ASN1_INTEGER_set(X509_get_serialNumber(x),serial);
-    if (! ASN1_TIME_set_string(X509_get_notBefore(x), start_date_asn1)) {
-        BIO_printf(bio_err, "Error in setting the start date: %s\n", start_date_asn1);
+    ASN1_INTEGER_set(X509_get_serialNumber(x),p->SERIAL);
+    if (! ASN1_TIME_set_string(X509_get_notBefore(x), p->START_DATE_ASN1)) {
+        BIO_printf(bio_err, "ERROR: Error in setting the start date: %s\n", p->START_DATE_ASN1);
         return false;
     }
-    if (! ASN1_TIME_set_string(X509_get_notAfter(x), end_date_asn1)) {
-        BIO_printf(bio_err, "Error in setting the end date: %s\n", end_date_asn1);
+    if (! ASN1_TIME_set_string(X509_get_notAfter(x), p->END_DATE_ASN1)) {
+        BIO_printf(bio_err, "ERROR: Error in setting the end date: %s\n", p->END_DATE_ASN1);
         return false;
     }
 
     X509_set_pubkey(x,pk);
-    if(!parse_and_add_subject_line(x, subject, bio_err)) {
-        BIO_printf(bio_err, "Error in parsing the subject line.\n");
+    if(!parse_and_add_subject_line(x, p, bio_err)) {
+        BIO_printf(bio_err, "ERROR: Error in parsing the subject line.\n");
         return false;
     }
     //self sign the certificate
     X509_set_issuer_name(x,X509_get_subject_name(x));
 
     if(!add_extensions(x, bio_err)) {
-        BIO_printf(bio_err, "Error in adding extensions to the certificate.\n");
+        BIO_printf(bio_err, "ERROR: Error in adding extensions to the certificate.\n");
         return false;
     }
 
-    if (X509_sign(x,pk,EVP_sha256()) == false) {
-        BIO_printf(bio_err, "Error in signing the certificate.\n");
+    if (X509_sign(x,NULL,EVP_sha256()) == false) { // TODO: pass dummy key instead of null
+        BIO_printf(bio_err, "ERROR: Error in signing the certificate.\n");
         return false;
     }
 
@@ -143,28 +242,27 @@ bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, const char *start_date_asn
     return true;
 }
 
-bool parse_and_add_subject_line(X509 *cert, const char *subject, BIO *bio_err) {
-    X509_NAME *name = parse_name(subject, MBSTRING_ASC, 1, bio_err);
-    if(! name) {
-        BIO_printf(bio_err, "Error in parsing subject name.\n");
-        return false;
-    }
-    if(! X509_set_subject_name(cert, name) ) {
-        BIO_printf(bio_err, "Error in setting subject name.\n");
-        return false;
-    }
-    X509_NAME_free(name);
+bool parse_and_add_subject_line(X509 *cert, parameters *p, BIO *bio_err) {
+
+	X509_NAME *name = X509_get_subject_name(cert);
+	if(!X509_NAME_add_entry_by_txt(name,"C", MBSTRING_ASC,  (const unsigned char *)(p->SBJ_C),-1,-1,0)) return false;
+	if(!X509_NAME_add_entry_by_txt(name,"ST", MBSTRING_ASC, (const unsigned char *)(p->SBJ_ST),-1,-1,0)) return false;
+	if(!X509_NAME_add_entry_by_txt(name,"L", MBSTRING_ASC,  (const unsigned char *)(p->SBJ_L),-1,-1,0)) return false;
+	if(!X509_NAME_add_entry_by_txt(name,"O", MBSTRING_ASC,  (const unsigned char *)(p->SBJ_O),-1,-1,0)) return false;
+	if(!X509_NAME_add_entry_by_txt(name,"OU", MBSTRING_ASC, (const unsigned char *)(p->SBJ_OU),-1,-1,0)) return false;
+	if(!X509_NAME_add_entry_by_txt(name,"CN", MBSTRING_ASC, (const unsigned char *)(p->SBJ_CN),-1,-1,0)) return false;
+	if(!X509_NAME_add_entry_by_txt(name,"emailAddress", MBSTRING_ASC, (const unsigned char *)(p->SBJ_EMAIL),-1,-1,0)) return false;
     return true;
 }
 
 bool add_extensions(X509 *cert, BIO *bio_err) {
     if(false) {}
     else if(! add_ext(cert, NID_subject_key_identifier, (char *)"hash"))
-        BIO_printf(bio_err, "Error in adding subject key identifier extension the certificate.\n");
+        BIO_printf(bio_err, "ERROR: Error in adding subject key identifier extension the certificate.\n");
     else if(! add_ext(cert, NID_authority_key_identifier, (char *)"keyid:always"))
-        BIO_printf(bio_err, "Error in adding authority key identifier extension the certificate.\n");
+        BIO_printf(bio_err, "ERROR: Error in adding authority key identifier extension the certificate.\n");
     else if(! add_ext(cert, NID_basic_constraints, (char *)"critical,CA:TRUE"))
-        BIO_printf(bio_err, "Error in adding basic constraints extension the certificate.\n");
+        BIO_printf(bio_err, "ERROR: Error in adding basic constraints extension the certificate.\n");
     else
         return true;
 
@@ -193,121 +291,74 @@ bool add_ext(X509 *cert, int nid, char *value) {
     return 1;
 }
 
-bool writeout_certificate_file(X509 *x509, BIO *bio_err) {
+bool writeout_certificate_file(X509 *x509, BIO *bio_err, parameters *p) {
     FILE * fp;
-    if (! (fp = fopen(CERT_OUTPUT_FILE, "wb"))) {
-        BIO_printf(bio_err, "Error in opening output certificate file.");
+    if (! (fp = fopen(p->OUTPUT_CERT_LOCATION, "wb"))) {
+        BIO_printf(bio_err, "ERROR: Error in opening output certificate file.");
         return false;
     }
 
     if ( PEM_write_X509(fp, x509) == false ) {
-        BIO_printf(bio_err, "Error in writing output certificate file.\n");
+        BIO_printf(bio_err, "ERROR: Error in writing output certificate file.\n");
         return false;
     }
 
     if (fclose(fp)) {
-        BIO_printf(bio_err, "Error in closing output certificate file.\n");
+        BIO_printf(bio_err, "ERROR: Error in closing output certificate file.\n");
         return false;
     }
 
     return true;
 }
 
-void teardown(X509 *x509, EVP_PKEY *pkey, BIO *bio_err) {
+void teardown(X509 *x509, EVP_PKEY *pukey, BIO *bio_err, parameters *p) {
     X509_free(x509);
-    EVP_PKEY_free(pkey);
+    EVP_PKEY_free(pukey);
 
     ENGINE_cleanup();
     CRYPTO_cleanup_all_ex_data();
 
     CRYPTO_mem_leaks(bio_err);
     BIO_free(bio_err);
+    free_parameters(p);
 }
 
-// brought (copy + minor modification) from openssl source code
-X509_NAME *parse_name(const char *cp, long chtype, int canmulti, BIO *bio_err) {
-    int nextismulti = 0;
-    char *work;
-    X509_NAME *n;
-
-    if (*cp++ != '/') {
-        BIO_printf(bio_err,
-                   "name is expected to be in the format "
-                   "/type0=value0/type1=value1/type2=... where characters may "
-                   "be escaped by \\. This name is not in that format: '%s'\n",
-                   --cp);
-        return NULL;
-    }
-
-    n = X509_NAME_new();
-    if (n == NULL)
-        return NULL;
-    work = OPENSSL_strdup(cp);
-    if (work == NULL) {
-        BIO_printf(bio_err, "Error copying name input\n");
-        goto err;
-    }
-
-    while (*cp) {
-        char *bp = work;
-        char *typestr = bp;
-        unsigned char *valstr;
-        int nid;
-        int ismulti = nextismulti;
-        nextismulti = 0;
-
-        /* Collect the type */
-        while (*cp && *cp != '=')
-            *bp++ = *cp++;
-        if (*cp == '\0') {
-            BIO_printf(bio_err, "Hit end of string before finding the '='\n");
-            goto err;
-        }
-        *bp++ = '\0';
-        ++cp;
-
-        /* Collect the value. */
-        valstr = (unsigned char *)bp;
-        for (; *cp && *cp != '/'; *bp++ = *cp++) {
-            if (canmulti && *cp == '+') {
-                nextismulti = 1;
-                break;
-            }
-            if (*cp == '\\' && *++cp == '\0') {
-                BIO_printf(bio_err, "escape character at end of string\n");
-                goto err;
-            }
-        }
-        *bp++ = '\0';
-
-        /* If not at EOS (must be + or /), move forward. */
-        if (*cp)
-            ++cp;
-
-        /* Parse */
-        nid = OBJ_txt2nid(typestr);
-        if (nid == NID_undef) {
-            BIO_printf(bio_err, "Skipping unknown attribute \"%s\"\n", typestr);
-            continue;
-        }
-        if (*valstr == '\0') {
-            BIO_printf(bio_err, "No value provided for Subject Attribute %s, skipped\n", typestr);
-            continue;
-        }
-        if (!X509_NAME_add_entry_by_NID(n, nid, chtype,
-                                        valstr, strlen((char *)valstr),
-                                        -1, ismulti ? -1 : 0)) {
-            BIO_printf(bio_err, "Error adding name attribute \"/%s=%s\"\n",
-                       typestr ,valstr);
-            goto err;
-        }
-    }
-
-    OPENSSL_free(work);
-    return n;
-
- err:
-    X509_NAME_free(n);
-    OPENSSL_free(work);
-    return NULL;
+void free_parameters(parameters *p) {
+    free(p->SBJ_C);
+    free(p->SBJ_ST);
+    free(p->SBJ_L);
+    free(p->SBJ_O);
+    free(p->SBJ_OU);
+    free(p->SBJ_CN);
+    free(p->SBJ_EMAIL);
+    free(p->START_DATE_ASN1);
+    free(p->END_DATE_ASN1);
+    free(p->ECENGINE_LOCATION);
+    free(p->PUKEY_PATH);
+    free(p->OUTPUT_CERT_LOCATION);
 }
+
+void debug_print_parameters(parameters *p) {
+    if(p) {
+        printf("DEBUG: parameters:\n");
+        printf("DEBUG: SBJ_C=%s\n", p->SBJ_C);
+        printf("DEBUG: SBJ_ST=%s\n", p->SBJ_ST);
+        printf("DEBUG: SBJ_L=%s\n", p->SBJ_L);
+        printf("DEBUG: SBJ_O=%s\n", p->SBJ_O);
+        printf("DEBUG: SBJ_OU=%s\n", p->SBJ_OU);
+        printf("DEBUG: SBJ_CN=%s\n", p->SBJ_CN);
+        printf("DEBUG: SBJ_EMAIL=%s\n", p->SBJ_EMAIL);
+        printf("DEBUG: START_DATE_ASN1=%s\n", p->START_DATE_ASN1);
+        printf("DEBUG: END_DATE_ASN1=%s\n", p->END_DATE_ASN1);
+        printf("DEBUG: SERIAL=0x%lu\n", p->SERIAL);
+        printf("DEBUG: OUTPUT_X509_V3=%i\n", p->OUTPUT_X509_V3);
+        printf("DEBUG: ECENGINE_LOCATION=%s\n", p->ECENGINE_LOCATION);
+        printf("DEBUG: PUKEY_PATH=%s\n", p->PUKEY_PATH);
+        printf("DEBUG: OUTPUT_CERT_LOCATION=%s\n", p->OUTPUT_CERT_LOCATION);
+        printf("DEBUG: LOAD_ECENGINE=%i\n", p->LOAD_ECENGINE);
+        printf("DEBUG: DEBUG=%i\n", p->DEBUG);
+        printf("\n");
+    } else {
+            printf("DEBUG: NULL");
+        }
+    }
