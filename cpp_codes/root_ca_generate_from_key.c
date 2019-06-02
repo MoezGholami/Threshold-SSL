@@ -6,6 +6,9 @@
 #include <openssl/conf.h>
 #include <openssl/x509v3.h>
 #include <openssl/engine.h>
+#include <openssl/evp.h>
+#include <openssl/bn.h>
+#include <openssl/ec.h>
 
 
 typedef     char    bool;
@@ -45,10 +48,11 @@ bool load_parameters(parameters *p);
 bool setup(BIO **bio_err, parameters *p);
 bool make_certificate(X509 **x509, EVP_PKEY **pukey, BIO *bio_err, parameters *p);
     bool load_public_key(EVP_PKEY **pukey, BIO *bio_err, parameters *p);
-    bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, parameters *p);
-        bool parse_and_add_subject_line(X509 *cert, parameters *p, BIO *bio_err);
+    bool mkcert(X509 **x509p, EVP_PKEY *pukey, BIO *bio_err, parameters *p);
+        bool add_subject_line(X509 *cert, parameters *p, BIO *bio_err);
         bool add_extensions(X509 *cert, BIO *bio_err);
         bool add_ext(X509 *cert, int nid, char *value);
+        EVP_PKEY *forge_dummy_private_key_from_public(EVP_PKEY *pukey);
     bool writeout_certificate_file(X509 *x509, BIO *bio_err, parameters *p);
 void teardown(X509 *x509, EVP_PKEY *pukey, BIO *bio_err, parameters *p);
     void free_parameters(parameters *p);
@@ -187,7 +191,7 @@ bool load_public_key(EVP_PKEY **pukey, BIO *bio_err, parameters *p) {
         BIO_printf(bio_err, "ERROR: Error reading CA private key file.\n");
         return false;
     }
-    if (! (pk = PEM_read_PrivateKey( fp, NULL, NULL, NULL))) { // TODO: Read public key instead
+    if (! (pk = PEM_read_PUBKEY( fp, NULL, NULL, NULL))) {
         BIO_printf(bio_err, "ERROR: Error importing key content from file.\n");
         return false;
     }
@@ -200,7 +204,7 @@ bool load_public_key(EVP_PKEY **pukey, BIO *bio_err, parameters *p) {
     return true;
 }
 
-bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, parameters *p) {
+bool mkcert(X509 **x509p, EVP_PKEY *pukey, BIO *bio_err, parameters *p) {
     X509 *x;
 
     if ((x=X509_new()) == NULL) {
@@ -220,8 +224,8 @@ bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, parameters *p) {
         return false;
     }
 
-    X509_set_pubkey(x,pk);
-    if(!parse_and_add_subject_line(x, p, bio_err)) {
+    X509_set_pubkey(x,pukey);
+    if(!add_subject_line(x, p, bio_err)) {
         BIO_printf(bio_err, "ERROR: Error in parsing the subject line.\n");
         return false;
     }
@@ -233,16 +237,24 @@ bool mkcert(X509 **x509p, EVP_PKEY *pk, BIO *bio_err, parameters *p) {
         return false;
     }
 
-    if (X509_sign(x,NULL,EVP_sha256()) == false) { // TODO: pass dummy key instead of null
+    EVP_PKEY *forged = forge_dummy_private_key_from_public(pukey);
+    if(!forged) {
+        BIO_printf(bio_err,
+                "ERROR: creating dummy private key (to circumvent openssl error checkings) from the public key.\n");
+        return false;
+    }
+    if (X509_sign(x,forged,EVP_sha256()) == false) {
         BIO_printf(bio_err, "ERROR: Error in signing the certificate.\n");
+        EVP_PKEY_free(forged);
         return false;
     }
 
+    EVP_PKEY_free(forged);
     *x509p=x;
     return true;
 }
 
-bool parse_and_add_subject_line(X509 *cert, parameters *p, BIO *bio_err) {
+bool add_subject_line(X509 *cert, parameters *p, BIO *bio_err) {
 
 	X509_NAME *name = X509_get_subject_name(cert);
 	if(!X509_NAME_add_entry_by_txt(name,"C", MBSTRING_ASC,  (const unsigned char *)(p->SBJ_C),-1,-1,0)) return false;
@@ -289,6 +301,37 @@ bool add_ext(X509 *cert, int nid, char *value) {
     X509_add_ext(cert,ex,-1);
     X509_EXTENSION_free(ex);
     return 1;
+}
+
+EVP_PKEY *forge_dummy_private_key_from_public(EVP_PKEY *pukey) {
+    EVP_PKEY *result = NULL;
+    EC_KEY *ec_key = NULL;
+    BIGNUM *phony_private_integer = NULL;
+
+    if(BN_hex2bn(&phony_private_integer, "101")==0 || !phony_private_integer)
+        return NULL;
+    ec_key = EVP_PKEY_get1_EC_KEY(pukey);
+    if(!ec_key) {
+        BN_clear_free(phony_private_integer);
+        return NULL;
+    }
+    if(!EC_KEY_set_private_key(ec_key, phony_private_integer)) {
+        BN_clear_free(phony_private_integer);
+        EC_KEY_free(ec_key);
+        return NULL;
+    }
+    result = EVP_PKEY_new();
+    if(!result) {
+        BN_clear_free(phony_private_integer);
+        EC_KEY_free(ec_key);
+    }
+    if(!EVP_PKEY_set1_EC_KEY(result, ec_key)) {
+        EVP_PKEY_free(result);
+        result = NULL;
+    }
+    BN_clear_free(phony_private_integer);
+    EC_KEY_free(ec_key);
+    return result;
 }
 
 bool writeout_certificate_file(X509 *x509, BIO *bio_err, parameters *p) {

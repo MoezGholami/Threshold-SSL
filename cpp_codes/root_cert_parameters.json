@@ -5,7 +5,7 @@
     "serial" :          "0x7000000000000001",
     "startDateASN1" :   "20190101000000Z",
     "endDateASN1" :     "20290101000000Z",
-    "x509v3" :          true,
+    "x509v3" :          false,
     "subject" : {
         "country" :                 "IR",
         "state" :                   "Tehran",
