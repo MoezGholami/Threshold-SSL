@@ -1,7 +1,4 @@
 {
-    "curve" :           "secp256k1",
-    "threshold_n" :     8,
-    "threshold_t" :     4,
     "serial" :          "0x7000000000000001",
     "startDateASN1" :   "20190101000000Z",
     "endDateASN1" :     "20290101000000Z",
