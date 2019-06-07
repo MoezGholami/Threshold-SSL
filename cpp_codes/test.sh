@@ -32,3 +32,4 @@ mkfifo $DIGEST_HASH_OUTPUT_FILE_NAME $SIGNATURE_INPUT_FILE_NAME
 gcc stub_signer.c $ossl_flags -o stub_signer.out || exit
 ./stub_signer.out &
 gcc root_ca_generate_from_key.c $ossl_flags -o root_ca_generate_from_key.out && ./root_ca_generate_from_key.out
+openssl verify -check_ss_sig rootcert.crt
