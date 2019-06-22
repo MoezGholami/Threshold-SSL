@@ -2,6 +2,7 @@
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/pem.h>
+#include <openssl/err.h>
 
 ssize_t getline_trim(char **lineptr, size_t *n, FILE *f) {
     ssize_t length = getline(lineptr, n, f);
@@ -48,6 +49,50 @@ bool load_public_key(EVP_PKEY **pukey, BIO *bio_err, const char *pubkey_path) {
     }
 
     *pukey = pk;
+    return true;
+}
+
+bool load_csr(X509_REQ **csr, BIO *bio_err, const char *path) {
+    X509_REQ *request = NULL;
+    FILE    *fp;
+
+    if (! (fp = fopen (path, "r"))) {
+        BIO_printf(bio_err, "ERROR: Error reading certificate request file.\n");
+        return false;
+    }
+    PEM_read_X509_REQ( fp, &request, NULL, NULL);
+    if (!request) {
+        BIO_printf(bio_err, "ERROR: Error importing certificate request content from file.\n");
+        return false;
+    }
+    if (fclose(fp)) {
+        BIO_printf(bio_err, "ERROR: Error in closing certificate request file.\n");
+        return false;
+    }
+
+    *csr = request;
+    return true;
+}
+
+bool load_crt(X509 **crt, BIO *bio_err, const char *path) {
+    X509 *certificate = NULL;
+    FILE    *fp;
+
+    if (! (fp = fopen (path, "r"))) {
+        BIO_printf(bio_err, "ERROR: Error reading root certificate file.\n");
+        return false;
+    }
+    PEM_read_X509( fp, &certificate, NULL, NULL);
+    if (!certificate) {
+        BIO_printf(bio_err, "ERROR: Error importing root certificate content from file.\n");
+        return false;
+    }
+    if (fclose(fp)) {
+        BIO_printf(bio_err, "ERROR: Error in closing root certificate file.\n");
+        return false;
+    }
+
+    *crt = certificate;
     return true;
 }
 

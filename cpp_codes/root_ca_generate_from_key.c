@@ -37,7 +37,6 @@ bool make_certificate(X509 **x509, EVP_PKEY **pukey, BIO *bio_err, parameters *p
         bool add_subject_line(X509 *cert, parameters *p, BIO *bio_err);
         bool add_extensions(X509 *cert, BIO *bio_err);
         bool add_ext(X509 *cert, int nid, char *value);
-        EVP_PKEY *forge_dummy_private_key_from_public(EVP_PKEY *pukey);
 void teardown(X509 *x509, EVP_PKEY *pukey, BIO *bio_err, parameters *p);
     void free_parameters(parameters *p);
 void debug_print_parameters(parameters *p);
@@ -289,5 +288,5 @@ void debug_print_parameters(parameters *p) {
         printf("\n");
     } else {
             printf("DEBUG: NULL");
-        }
     }
+}
