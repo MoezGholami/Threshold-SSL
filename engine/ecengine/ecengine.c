@@ -77,8 +77,6 @@ bool check_paramethers(int dgst_len, const BIGNUM *kinv, const BIGNUM *rp, EC_KE
         fprintf(stderr, "The digest length must be positive.\n");
     else if(kinv || rp)
         fprintf(stderr, "Our algorithm inherently cannot support know **kinv** and **rp**. It's secretly shared.\n");
-    else if(EC_GROUP_get_curve_name(EC_KEY_get0_group(key_template)) != NID_secp256k1)
-        fprintf(stderr, "Currently we only support the secp256k1 curve.\n");
     else
         return true;
     return false;
