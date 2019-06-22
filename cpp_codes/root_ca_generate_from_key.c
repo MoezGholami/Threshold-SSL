@@ -2,23 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/pem.h>
 #include <openssl/conf.h>
 #include <openssl/x509v3.h>
 #include <openssl/engine.h>
 #include <openssl/evp.h>
-#include <openssl/bn.h>
-#include <openssl/ec.h>
 
-
-typedef     char    bool;
-#define     true            1
-#define     false           0
-#ifndef     NULL
-#define     NULL            0
-#endif
-
-const char *PARAMETERS_FILE_PATH = ".c_parameters.txt";
+#include "util.h"
 
 typedef struct _params {
     char *SBJ_C;
@@ -33,27 +22,22 @@ typedef struct _params {
     unsigned long SERIAL;
 
     bool OUTPUT_X509_V3;
-    char *ECENGINE_LOCATION;
-    char *PUKEY_PATH;
-    char *OUTPUT_CERT_LOCATION;
+    char *ECENGINE_PATH;
+    char *CA_PUBKEY_PATH;
+    char *OUTPUT_CERT_PATH;
     bool LOAD_ECENGINE;
     bool DEBUG;
 } parameters;
 
 int main(int argc, char *argv[]);
-bool load_parameters(parameters *p);
-    ssize_t getline_trim(char **lineptr, size_t *n, FILE *f);
-    bool read_boolean_pointer(FILE *f, bool *result);
-    bool consume_line_till_end(FILE *f);
+bool load_parameters(parameters *p, const char *path);
 bool setup(BIO **bio_err, parameters *p);
 bool make_certificate(X509 **x509, EVP_PKEY **pukey, BIO *bio_err, parameters *p);
-    bool load_public_key(EVP_PKEY **pukey, BIO *bio_err, parameters *p);
-    bool mkcert(X509 **x509p, EVP_PKEY *pukey, BIO *bio_err, parameters *p);
+    bool build_certificate_data_structure(X509 **x509p, EVP_PKEY *pukey, BIO *bio_err, parameters *p);
         bool add_subject_line(X509 *cert, parameters *p, BIO *bio_err);
         bool add_extensions(X509 *cert, BIO *bio_err);
         bool add_ext(X509 *cert, int nid, char *value);
         EVP_PKEY *forge_dummy_private_key_from_public(EVP_PKEY *pukey);
-    bool writeout_certificate_file(X509 *x509, BIO *bio_err, parameters *p);
 void teardown(X509 *x509, EVP_PKEY *pukey, BIO *bio_err, parameters *p);
     void free_parameters(parameters *p);
 void debug_print_parameters(parameters *p);
@@ -64,8 +48,12 @@ int main(int argc, char *argv[]) {
     EVP_PKEY *pukey=NULL;
     parameters params;
 
-    if(!load_parameters(&params)) {
-        fprintf(stderr, "ERROR: Could not load parameters from file %s. Aborting ...\n", PARAMETERS_FILE_PATH);
+    if (argc < 2) {
+        fprintf(stderr, "ERROR: The first main argument must be parameters file path. Not enough parameters. Aborting...\n");
+        return 1;
+    }
+    if(!load_parameters(&params, argv[1])) {
+        fprintf(stderr, "ERROR: Could not load parameters from file %s. Aborting ...\n", argv[1]);
         return 1;
     }
     if(params.DEBUG)
@@ -86,10 +74,10 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-bool load_parameters(parameters *p) {
+bool load_parameters(parameters *p, const char *path) {
     size_t limit = 0;
     char *temp_buffer=0;
-    FILE *f = fopen(PARAMETERS_FILE_PATH, "r");
+    FILE *f = fopen(path, "r");
     for(char *c = (char*) p; c < sizeof(*p) + (char*)p; c++)
         *c = 0;
     if(!f)
@@ -110,38 +98,12 @@ bool load_parameters(parameters *p) {
     if(getline_trim(&(p->SBJ_OU), &limit, f) <= 0) return false;
     if(getline_trim(&(p->SBJ_CN), &limit, f) <= 0) return false;
     if(getline_trim(&(p->SBJ_EMAIL), &limit, f) <= 0) return false;
-    if(getline_trim(&(p->ECENGINE_LOCATION), &limit, f) <= 0) return false;
-    if(getline_trim(&(p->PUKEY_PATH), &limit, f) <= 0) return false;
-    if(getline_trim(&(p->OUTPUT_CERT_LOCATION), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->ECENGINE_PATH), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->CA_PUBKEY_PATH), &limit, f) <= 0) return false;
+    if(getline_trim(&(p->OUTPUT_CERT_PATH), &limit, f) <= 0) return false;
     if(!read_boolean_pointer(f, &(p->LOAD_ECENGINE))) return false;
     if(!read_boolean_pointer(f, &(p->DEBUG))) return false;
 
-    return true;
-}
-
-ssize_t getline_trim(char **lineptr, size_t *n, FILE *f) {
-    ssize_t length = getline(lineptr, n, f);
-    if(length>0)
-        (*lineptr)[length-1] = '\0';
-    return length;
-}
-
-bool read_boolean_pointer(FILE *f, bool *result) {
-    int bool_as_int = 0;
-    if(fscanf(f, "%i", &bool_as_int) < 1)
-        return false;
-    if(!consume_line_till_end(f))
-        return false;
-    *result = !(!bool_as_int);
-    return true;
-}
-
-bool consume_line_till_end(FILE *f) {
-    char *temp_buffer = 0;
-    size_t limit = 0;
-    if(getline(&temp_buffer, &limit, f) <= 0)
-        return false;
-    free(temp_buffer);
     return true;
 }
 
@@ -154,9 +116,9 @@ bool setup(BIO **bio_err, parameters *p) {
     *bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
     if(p->LOAD_ECENGINE) {
         ENGINE_load_dynamic();
-        ENGINE *e = ENGINE_by_id(p->ECENGINE_LOCATION);
+        ENGINE *e = ENGINE_by_id(p->ECENGINE_PATH);
         if( e == NULL ) {
-            BIO_printf(*bio_err, "ERROR: Could not find the engine: %s\n", p->ECENGINE_LOCATION);
+            BIO_printf(*bio_err, "ERROR: Could not find the engine: %s\n", p->ECENGINE_PATH);
             return false;
         }
 	    if(!ENGINE_set_default_ECDSA(e)) {
@@ -168,43 +130,18 @@ bool setup(BIO **bio_err, parameters *p) {
 }
 
 bool make_certificate(X509 **x509, EVP_PKEY **pukey, BIO *bio_err, parameters *p) {
-    if (load_public_key(pukey, bio_err, p) == false)
+    if (load_public_key(pukey, bio_err, p->CA_PUBKEY_PATH) == false)
         return false;
 
-    if (mkcert(x509, *pukey, bio_err, p) == false) {
+    if (build_certificate_data_structure(x509, *pukey, bio_err, p) == false) {
         BIO_printf(bio_err, "ERROR: Could not create the certificate\n");
         return false;
     }
 
-    return writeout_certificate_file(*x509, bio_err, p);
+    return writeout_certificate_file(*x509, bio_err, p->OUTPUT_CERT_PATH);
 }
 
-bool load_public_key(EVP_PKEY **pukey, BIO *bio_err, parameters *p) {
-    EVP_PKEY *pk;
-    FILE    *fp;
-
-    if (! (pk=EVP_PKEY_new())) {
-        BIO_printf(bio_err, "ERROR: Error in creating private key data structure.\n");
-        return false;
-    }
-    if (! (fp = fopen (p->PUKEY_PATH, "r"))) {
-        BIO_printf(bio_err, "ERROR: Error reading CA private key file.\n");
-        return false;
-    }
-    if (! (pk = PEM_read_PUBKEY( fp, NULL, NULL, NULL))) {
-        BIO_printf(bio_err, "ERROR: Error importing key content from file.\n");
-        return false;
-    }
-    if (fclose(fp)) {
-        BIO_printf(bio_err, "ERROR: Error in closing key content file.\n");
-        return false;
-    }
-
-    *pukey = pk;
-    return true;
-}
-
-bool mkcert(X509 **x509p, EVP_PKEY *pukey, BIO *bio_err, parameters *p) {
+bool build_certificate_data_structure(X509 **x509p, EVP_PKEY *pukey, BIO *bio_err, parameters *p) {
     X509 *x;
 
     if ((x=X509_new()) == NULL) {
@@ -303,57 +240,6 @@ bool add_ext(X509 *cert, int nid, char *value) {
     return 1;
 }
 
-EVP_PKEY *forge_dummy_private_key_from_public(EVP_PKEY *pukey) {
-    EVP_PKEY *result = NULL;
-    EC_KEY *ec_key = NULL;
-    BIGNUM *phony_private_integer = NULL;
-
-    if(BN_hex2bn(&phony_private_integer, "101")==0 || !phony_private_integer)
-        return NULL;
-    ec_key = EVP_PKEY_get1_EC_KEY(pukey);
-    if(!ec_key) {
-        BN_clear_free(phony_private_integer);
-        return NULL;
-    }
-    if(!EC_KEY_set_private_key(ec_key, phony_private_integer)) {
-        BN_clear_free(phony_private_integer);
-        EC_KEY_free(ec_key);
-        return NULL;
-    }
-    result = EVP_PKEY_new();
-    if(!result) {
-        BN_clear_free(phony_private_integer);
-        EC_KEY_free(ec_key);
-    }
-    if(!EVP_PKEY_set1_EC_KEY(result, ec_key)) {
-        EVP_PKEY_free(result);
-        result = NULL;
-    }
-    BN_clear_free(phony_private_integer);
-    EC_KEY_free(ec_key);
-    return result;
-}
-
-bool writeout_certificate_file(X509 *x509, BIO *bio_err, parameters *p) {
-    FILE * fp;
-    if (! (fp = fopen(p->OUTPUT_CERT_LOCATION, "wb"))) {
-        BIO_printf(bio_err, "ERROR: Error in opening output certificate file.");
-        return false;
-    }
-
-    if ( PEM_write_X509(fp, x509) == false ) {
-        BIO_printf(bio_err, "ERROR: Error in writing output certificate file.\n");
-        return false;
-    }
-
-    if (fclose(fp)) {
-        BIO_printf(bio_err, "ERROR: Error in closing output certificate file.\n");
-        return false;
-    }
-
-    return true;
-}
-
 void teardown(X509 *x509, EVP_PKEY *pukey, BIO *bio_err, parameters *p) {
     X509_free(x509);
     EVP_PKEY_free(pukey);
@@ -376,9 +262,9 @@ void free_parameters(parameters *p) {
     free(p->SBJ_EMAIL);
     free(p->START_DATE_ASN1);
     free(p->END_DATE_ASN1);
-    free(p->ECENGINE_LOCATION);
-    free(p->PUKEY_PATH);
-    free(p->OUTPUT_CERT_LOCATION);
+    free(p->ECENGINE_PATH);
+    free(p->CA_PUBKEY_PATH);
+    free(p->OUTPUT_CERT_PATH);
 }
 
 void debug_print_parameters(parameters *p) {
@@ -395,9 +281,9 @@ void debug_print_parameters(parameters *p) {
         printf("DEBUG: END_DATE_ASN1=%s\n", p->END_DATE_ASN1);
         printf("DEBUG: SERIAL=0x%lu\n", p->SERIAL);
         printf("DEBUG: OUTPUT_X509_V3=%i\n", p->OUTPUT_X509_V3);
-        printf("DEBUG: ECENGINE_LOCATION=%s\n", p->ECENGINE_LOCATION);
-        printf("DEBUG: PUKEY_PATH=%s\n", p->PUKEY_PATH);
-        printf("DEBUG: OUTPUT_CERT_LOCATION=%s\n", p->OUTPUT_CERT_LOCATION);
+        printf("DEBUG: ECENGINE_PATH=%s\n", p->ECENGINE_PATH);
+        printf("DEBUG: CA_PUBKEY_PATH=%s\n", p->CA_PUBKEY_PATH);
+        printf("DEBUG: OUTPUT_CERT_PATH=%s\n", p->OUTPUT_CERT_PATH);
         printf("DEBUG: LOAD_ECENGINE=%i\n", p->LOAD_ECENGINE);
         printf("DEBUG: DEBUG=%i\n", p->DEBUG);
         printf("\n");
