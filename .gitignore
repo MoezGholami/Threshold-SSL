@@ -336,5 +336,3 @@ $RECYCLE.BIN/
 # End of https://www.gitignore.io/api/c,osx,vim,c++,emacs,linux,python,windows
 
 # locals of this project
-output/
-.c_parameters.txt
