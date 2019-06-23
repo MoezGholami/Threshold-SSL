@@ -16,7 +16,7 @@ static const char *SIGNATURE_INPUT_FILE_NAME    =       "signature_pipe";
 #define     true            1
 #define     false           0
 
-static ECDSA_METHOD *setup_ecdsa_method(void);
+static EC_KEY_METHOD *setup_ecdsa_method(void);
 static ECDSA_SIG *mozecengine_ecdsa_sign (const unsigned char *dgst, int dgst_len,
         const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *key_template);
     static bool check_paramethers(int dgst_len, const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *key_template);
@@ -25,14 +25,34 @@ static ECDSA_SIG *mozecengine_ecdsa_sign (const unsigned char *dgst, int dgst_le
 static int mozecengine_ecdsa_sign_setup (EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp, BIGNUM **rp);
 static int mozecengine_ecdsa_do_verify (const unsigned char *digest, int digest_len,
         const ECDSA_SIG *ecdsa_sig, EC_KEY *eckey);
+static int mozecengine_ecdsa_do_verify_temp(int type, const unsigned char *dgst, int dgst_len,
+        const unsigned char *sigbuf, int sig_len, EC_KEY *eckey) {
+    printf("INFO: Mozecengine temp verify function ...\n");
+    return true;
+}
+static int mozecengine_ecdsa_sign_temp(int type, const unsigned char *dgst, int dlen,
+        unsigned char *sig, unsigned int *siglen, const BIGNUM *kinv, const BIGNUM *r, EC_KEY *eckey) {
+    printf("INFO: Mozecengine temp sign function ...\n");
+
+    ECDSA_SIG *s;
+
+    s = mozecengine_ecdsa_sign(dgst, dlen, kinv, r, eckey);
+    if (s == NULL) {
+        *siglen = 0;
+        return false;
+    }
+    *siglen = i2d_ECDSA_SIG(s, &sig);
+    ECDSA_SIG_free(s);
+    return true;
+}
 
 static int bind(ENGINE *e, const char *id) {
-    ECDSA_METHOD *mozecengine_ecdsa_method = setup_ecdsa_method();
+    EC_KEY_METHOD *mozecengine_ecdsa_method = setup_ecdsa_method();
     if (
             !mozecengine_ecdsa_method
         ||	!ENGINE_set_id(e, ENGINE_ID)
         ||	!ENGINE_set_name(e, ENGINE_NAME)
-        ||	!ENGINE_set_ECDSA(e, mozecengine_ecdsa_method)
+        ||	!ENGINE_set_EC(e, mozecengine_ecdsa_method)
        ) {
         fprintf(stderr, "engine setup failed\n");
         return false;
@@ -40,13 +60,13 @@ static int bind(ENGINE *e, const char *id) {
     return true;
 }
 
-ECDSA_METHOD *setup_ecdsa_method(void) {
-    ECDSA_METHOD *result = ECDSA_METHOD_new(NULL);
+EC_KEY_METHOD *setup_ecdsa_method(void) {
+    EC_KEY_METHOD *result = EC_KEY_METHOD_new(NULL);
     if (result) {
-        ECDSA_METHOD_set_name(result, "Mozecengine ECDSA method");
-        ECDSA_METHOD_set_sign(result, mozecengine_ecdsa_sign);
-        ECDSA_METHOD_set_sign_setup(result, mozecengine_ecdsa_sign_setup);
-        ECDSA_METHOD_set_verify(result, mozecengine_ecdsa_do_verify);
+        //EC_KEY_METHOD_set_name(result, "Mozecengine ECDSA method");
+        EC_KEY_METHOD_set_sign(result, mozecengine_ecdsa_sign_temp, mozecengine_ecdsa_sign_setup, mozecengine_ecdsa_sign);
+        //EC_KEY_METHOD_set_sign_setup(result, mozecengine_ecdsa_sign_setup);
+        EC_KEY_METHOD_set_verify(result, mozecengine_ecdsa_do_verify_temp, mozecengine_ecdsa_do_verify);
     }
     return result;
 }
@@ -119,11 +139,11 @@ bool read_signature_from_input(ECDSA_SIG **signature) {
         return false;
     free(r_str);
     free(s_str);
-    ECDSA_SIG *result = malloc(sizeof(ECDSA_SIG));
+    ECDSA_SIG *result = ECDSA_SIG_new();
     if(!result)
         return false;
-    result -> r = r;
-    result -> s = s;
+    if(!ECDSA_SIG_set0(result, r, s))
+        return false;
     *signature = result;
     return true;
 }

@@ -7,7 +7,8 @@ SIGNATURE_INPUT_FILE_NAME="signature_pipe"
 TEMP_RUNTIME_CONFIG="truntime.json"
 C_READABLE_PARAMETERS="./.c_parameters.txt"
 
-ossl_flags="-I/usr/local/Cellar/openssl/1.0.2r/include -L/usr/local/Cellar/openssl/1.0.2r/lib -lssl -lcrypto"
+#ossl_flags="-I/usr/local/Cellar/openssl/1.0.2r/include -L/usr/local/Cellar/openssl/1.0.2r/lib -lssl -lcrypto"
+ossl_flags="-I/usr/local/Cellar/openssl@1.1/1.1.1b/include -L/usr/local/Cellar/openssl@1.1/1.1.1b/lib -lssl -lcrypto"
 
 set -e
 

@@ -121,12 +121,12 @@ bool write_out_the_signature(const char *signature_path, ECDSA_SIG *signature) {
         fprintf(stderr, "ERROR: Could not open signature output file.\n");
         return false;
     }
-    if(!BN_print_fp(f, signature->r)) {
+    if(!BN_print_fp(f, ECDSA_SIG_get0_r(signature))) {
         fprintf(stderr, "ERROR: Could not write the signature R number.\n");
         return false;
     }
     fprintf(f, "\n");
-    if(!BN_print_fp(f, signature->s)) {
+    if(!BN_print_fp(f, ECDSA_SIG_get0_s(signature))) {
         fprintf(stderr, "ERROR: Could not write the signature S number.\n");
         return false;
     }

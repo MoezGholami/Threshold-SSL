@@ -269,7 +269,7 @@ bool load_engine_if_needed(parameters *p, BIO *bio_err) {
             BIO_printf(bio_err, "ERROR: Could not find the engine: %s\n", p->ECENGINE_PATH);
             return false;
         }
-	    if(!ENGINE_set_default_ECDSA(e)) {
+	    if(!ENGINE_set_default_EC(e)) {
             BIO_printf(bio_err, "ERROR: Could not register the engine for ECDSA operation.\n");
             return false;
         }
