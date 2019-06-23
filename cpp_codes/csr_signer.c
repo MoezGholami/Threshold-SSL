@@ -35,6 +35,7 @@ bool make_certificate(parameters *p, BIO *bio_err);
     bool add_non_csr_data_to_certificate(X509 *crt, X509* root_crt, CONF *extensions,
         char *extensions_section, parameters *p, BIO *bio_err);
         bool apply_configuration(X509 *x, X509 *root_crt, CONF *conf, char *section);
+    bool load_engine_if_needed(parameters *p, BIO *bio_err);
     bool forge_sign(X509 *new_crt, X509 *root_crt, BIO *bio_err);
 void debug_print_parameters(parameters *p);
 
@@ -83,7 +84,7 @@ bool load_parameters(parameters *p, const char *path) {
     if(getline_trim(&(p->START_DATE_ASN1), &limit, f) <= 0) return false;
     if(getline_trim(&(p->END_DATE_ASN1), &limit, f) <= 0) return false;
 
-    if(fscanf(f, "0x%lux", &(p->SERIAL)) < 1)
+    if(fscanf(f, "0x%lx", &(p->SERIAL)) < 1)
         return false;
     if(!consume_line_till_end(f)) return false;
 
@@ -103,18 +104,6 @@ bool setup(BIO **bio_err, parameters *p) {
 
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
     *bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
-    if(p->LOAD_ECENGINE) {
-        ENGINE_load_dynamic();
-        ENGINE *e = ENGINE_by_id(p->ECENGINE_PATH);
-        if( e == NULL ) {
-            BIO_printf(*bio_err, "ERROR: Could not find the engine: %s\n", p->ECENGINE_PATH);
-            return false;
-        }
-	    if(!ENGINE_set_default_ECDSA(e)) {
-            BIO_printf(*bio_err, "ERROR: Could not register the engine for ECDSA operation.\n");
-            return false;
-        }
-    }
     return true;
 }
 
@@ -138,6 +127,9 @@ bool make_certificate(parameters *p, BIO *bio_err) {
         BIO_printf(bio_err, "ERROR: Could add extensions to the new certificate.\n");
         return false;
     }
+    if (! load_engine_if_needed(p, bio_err)) {
+        return false;
+    } 
     if (forge_sign(new_crt, root_crt, bio_err) == false) {
         BIO_printf(bio_err, "ERROR: Could not sign the new certificate.\n");
         return false;
@@ -249,7 +241,7 @@ bool add_non_csr_data_to_certificate(X509 *crt, X509* root_crt, CONF *extensions
         BIO_printf(bio_err, "ERROR: Error in setting the end date: %s\n", p->END_DATE_ASN1);
         return false;
     }
-    if(apply_configuration(crt, root_crt, extensions, extensions_section)) {
+    if(! apply_configuration(crt, root_crt, extensions, extensions_section)) {
         BIO_printf(bio_err, "ERROR: Error adding extensions to the new certificate.\n");
         return false;
     }
@@ -267,6 +259,22 @@ bool apply_configuration(X509 *x, X509 *root_crt, CONF *conf, char *section) {
         return false;
     else
         return true;
+}
+
+bool load_engine_if_needed(parameters *p, BIO *bio_err) {
+    if(p->LOAD_ECENGINE) {
+        ENGINE_load_dynamic();
+        ENGINE *e = ENGINE_by_id(p->ECENGINE_PATH);
+        if( e == NULL ) {
+            BIO_printf(bio_err, "ERROR: Could not find the engine: %s\n", p->ECENGINE_PATH);
+            return false;
+        }
+	    if(!ENGINE_set_default_ECDSA(e)) {
+            BIO_printf(bio_err, "ERROR: Could not register the engine for ECDSA operation.\n");
+            return false;
+        }
+    }
+    return true;
 }
 
 bool forge_sign(X509 *new_crt, X509 *root_crt, BIO *bio_err) {
@@ -300,7 +308,7 @@ void debug_print_parameters(parameters *p) {
         printf("DEBUG: OUTPUT_CERT_PATH=%s\n", p->OUTPUT_CERT_PATH);
         printf("DEBUG: START_DATE_ASN1=%s\n", p->START_DATE_ASN1);
         printf("DEBUG: END_DATE_ASN1=%s\n", p->END_DATE_ASN1);
-        printf("DEBUG: SERIAL=0x%lu\n", p->SERIAL);
+        printf("DEBUG: SERIAL=0x%lx\n", p->SERIAL);
         printf("DEBUG: OUTPUT_X509_V3=%i\n", p->OUTPUT_X509_V3);
 
         printf("DEBUG: CA_CERT_PATH=%s\n", p->CA_CERT_PATH);

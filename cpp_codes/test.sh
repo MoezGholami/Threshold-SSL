@@ -27,7 +27,7 @@ EOT
 
 openssl ecparam -genkey -name secp256k1 > "$PRIV_KEY_FILE"
 openssl ec -in "$PRIV_KEY_FILE" -pubout > "$PUB_KEY_FILE"
-python parameter_feed_for_c_code.py root_cert_parameters.json $TEMP_RUNTIME_CONFIG
+python params_feeder_root_c_code.py root_cert_parameters.json $TEMP_RUNTIME_CONFIG
 mkfifo $DIGEST_HASH_OUTPUT_FILE_NAME $SIGNATURE_INPUT_FILE_NAME
 
 gcc csr_signer.c util.c $ossl_flags -o csr_signer.out &&

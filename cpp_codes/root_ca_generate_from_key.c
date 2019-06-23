@@ -82,7 +82,7 @@ bool load_parameters(parameters *p, const char *path) {
     if(!f)
         return false;
 
-    if(fscanf(f, "0x%lux", &(p->SERIAL)) < 1)
+    if(fscanf(f, "0x%lx", &(p->SERIAL)) < 1)
         return false;
     if(!consume_line_till_end(f)) return false;
 
@@ -278,7 +278,7 @@ void debug_print_parameters(parameters *p) {
         printf("DEBUG: SBJ_EMAIL=%s\n", p->SBJ_EMAIL);
         printf("DEBUG: START_DATE_ASN1=%s\n", p->START_DATE_ASN1);
         printf("DEBUG: END_DATE_ASN1=%s\n", p->END_DATE_ASN1);
-        printf("DEBUG: SERIAL=0x%lu\n", p->SERIAL);
+        printf("DEBUG: SERIAL=0x%lx\n", p->SERIAL);
         printf("DEBUG: OUTPUT_X509_V3=%i\n", p->OUTPUT_X509_V3);
         printf("DEBUG: ECENGINE_PATH=%s\n", p->ECENGINE_PATH);
         printf("DEBUG: CA_PUBKEY_PATH=%s\n", p->CA_PUBKEY_PATH);

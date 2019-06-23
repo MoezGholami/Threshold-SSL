@@ -1,0 +1,11 @@
+client.csr
+client.ext
+client.crt
+20190202000000Z
+20200101000000Z
+0x7000000000A00001
+1
+root.crt
+/Users/moez/Desktop/ssl_playground/cpp_codes/ecengine.so
+1
+1
