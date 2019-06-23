@@ -336,3 +336,4 @@ $RECYCLE.BIN/
 # End of https://www.gitignore.io/api/c,osx,vim,c++,emacs,linux,python,windows
 
 # locals of this project
+temp_files
