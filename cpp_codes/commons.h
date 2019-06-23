@@ -1,5 +1,5 @@
-#ifndef __openssl_threshold_util_file__
-#define __openssl_threshold_util_file__
+#ifndef __openssl_threshold_commons_openssl_file__
+#define __openssl_threshold_commons_openssl_file__
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -6,4 +6,4 @@ set -e
 
 gcc stub_signer.c $ossl_flags -o stub_signer.out || exit
 ./stub_signer.out &
-gcc csr_signer.c util.c $ossl_flags -o csr_signer.out && ./csr_signer.out client_certificate_parameters.txt
+gcc csr_signer.c commons.c $ossl_flags -o csr_signer.out && ./csr_signer.out client_certificate_parameters.txt

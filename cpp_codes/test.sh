@@ -30,9 +30,9 @@ openssl ec -in "$PRIV_KEY_FILE" -pubout > "$PUB_KEY_FILE"
 python params_feeder_root_c_code.py root_cert_parameters.json $TEMP_RUNTIME_CONFIG
 mkfifo $DIGEST_HASH_OUTPUT_FILE_NAME $SIGNATURE_INPUT_FILE_NAME
 
-gcc csr_signer.c util.c $ossl_flags -o csr_signer.out &&
+gcc csr_signer.c commons.c $ossl_flags -o csr_signer.out &&
 gcc stub_signer.c $ossl_flags -o stub_signer.out || exit
 ./stub_signer.out &
-gcc root_ca_generate_from_key.c util.c $ossl_flags -o root_ca_generate_from_key.out &&
+gcc root_ca_generate_from_key.c commons.c $ossl_flags -o root_ca_generate_from_key.out &&
     ./root_ca_generate_from_key.out "$C_READABLE_PARAMETERS"
 openssl verify -check_ss_sig rootcert.crt

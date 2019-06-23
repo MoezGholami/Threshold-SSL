@@ -7,7 +7,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/engine.h>
 
-#include "util.h"
+#include "commons.h"
 
 typedef struct _params {
     char *CSR_PATH;

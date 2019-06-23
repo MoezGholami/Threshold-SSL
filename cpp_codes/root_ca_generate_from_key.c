@@ -7,7 +7,7 @@
 #include <openssl/engine.h>
 #include <openssl/evp.h>
 
-#include "util.h"
+#include "commons.h"
 
 typedef struct _params {
     char *SBJ_C;
