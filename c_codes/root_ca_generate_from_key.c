@@ -120,7 +120,7 @@ bool setup(BIO **bio_err, parameters *p) {
             BIO_printf(*bio_err, "ERROR: Could not find the engine: %s\n", p->ECENGINE_PATH);
             return false;
         }
-	    if(!ENGINE_set_default_ECDSA(e)) {
+	    if(!ENGINE_set_default_EC(e)) {
             BIO_printf(*bio_err, "ERROR: Could not register the engine for ECDSA operation.\n");
             return false;
         }
@@ -246,7 +246,6 @@ void teardown(X509 *x509, EVP_PKEY *pukey, BIO *bio_err, parameters *p) {
     ENGINE_cleanup();
     CRYPTO_cleanup_all_ex_data();
 
-    CRYPTO_mem_leaks(bio_err);
     BIO_free(bio_err);
     free_parameters(p);
 }
