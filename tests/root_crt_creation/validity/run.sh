@@ -58,3 +58,33 @@ rm -rf digest_pipe signature_pipe && mkfifo digest_pipe signature_pipe
 ./stub_signer.out & ./root_ca_generate_from_key.out "$ok_c_params"
 rm -rf digest_pipe signature_pipe && mkfifo digest_pipe signature_pipe
 ./stub_signer.out & ./root_ca_generate_from_key.out "$corrupt_c_params"
+
+openssl verify -check_ss_sig ok.crt >ok_out.txt 2>&1 || true
+openssl verify -check_ss_sig corrupt.crt >corrupt_out.txt 2>&1 || true
+
+printf "\n\n\n"
+
+result=0
+if grep "certificate signature failure" corrupt_out.txt > /dev/null; then
+    echo "the corrupt certificate is marked as corrupt :)"
+else
+    echo "False positive: the CORRUPT certificate is NOT marked as CORRUPT"
+    result=1
+fi
+
+if grep "certificate signature failure" ok_out.txt > /dev/null; then
+    echo "False negative: the OK certificate is marked as CORRUPT"
+    result=1
+else
+    echo "the OK certificate is marked as OK :)"
+fi
+
+printf "\n\n\n"
+
+if [ $result -ne 0 ]; then
+    echo "Test failed!"
+else
+    echo "Test passed!"
+fi
+
+exit $result
