@@ -34,6 +34,6 @@ mkfifo $DIGEST_HASH_OUTPUT_FILE_NAME $SIGNATURE_INPUT_FILE_NAME
 gcc csr_signer.c commons.c $ossl_flags -o csr_signer.out &&
 gcc stub_signer.c $ossl_flags -o stub_signer.out || exit
 ./stub_signer.out &
-gcc root_ca_generate_from_key.c commons.c $ossl_flags -o root_ca_generate_from_key.out &&
-    ./root_ca_generate_from_key.out "$C_READABLE_PARAMETERS"
+gcc root_ca_creator.c commons.c $ossl_flags -o root_ca_creator.out &&
+    ./root_ca_creator.out "$C_READABLE_PARAMETERS"
 openssl verify -check_ss_sig rootcert.crt

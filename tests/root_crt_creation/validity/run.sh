@@ -25,7 +25,7 @@ cd temp_files
 gcc $ossl_include -fPIC -o ecengine.o -c "$c_codes_dir"/ecengine.c
 gcc $ossl_flags -shared -o ecengine.so ecengine.o && rm ecengine.o && cp ecengine.so /tmp/ecengine.so
 gcc "$c_codes_dir"/stub_signer.c $ossl_flags -o stub_signer.out
-gcc "$c_codes_dir"/root_ca_generate_from_key.c "$c_codes_dir"/commons.c $ossl_flags -o root_ca_generate_from_key.out
+gcc "$c_codes_dir"/root_ca_creator.c "$c_codes_dir"/commons.c $ossl_flags -o root_ca_creator.out
 
 openssl ecparam -genkey -name secp384r1 > "$priv1" && openssl ec -in "$priv1" -pubout > "$pub1"
 openssl ecparam -genkey -name secp384r1 > "$priv2" && openssl ec -in "$priv2" -pubout > "$pub2" && rm -f "$priv2"
@@ -55,9 +55,9 @@ EOT
 python3 "$params_python_script" ../root_cert_parameters.json $corrupt_runtime_config
 
 rm -rf digest_pipe signature_pipe && mkfifo digest_pipe signature_pipe
-./stub_signer.out & ./root_ca_generate_from_key.out "$ok_c_params"
+./stub_signer.out & ./root_ca_creator.out "$ok_c_params"
 rm -rf digest_pipe signature_pipe && mkfifo digest_pipe signature_pipe
-./stub_signer.out & ./root_ca_generate_from_key.out "$corrupt_c_params"
+./stub_signer.out & ./root_ca_creator.out "$corrupt_c_params"
 
 openssl verify -check_ss_sig ok.crt >ok_out.txt 2>&1 || true
 openssl verify -check_ss_sig corrupt.crt >corrupt_out.txt 2>&1 || true
