@@ -337,3 +337,4 @@ $RECYCLE.BIN/
 
 # locals of this project
 temp_files
+ossl_tests_log.log
