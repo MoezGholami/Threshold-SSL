@@ -31,7 +31,7 @@ bool load_parameters(parameters *p, const char *path);
 bool setup(BIO **bio_err, parameters *p);
 bool make_certificate(parameters *p, BIO *bio_err);
     bool load_conf(CONF **conf, char **section, BIO *bio_err, const char *path);
-    bool init_certificate_from_csr_and_root(X509 **new_crt, X509_REQ *csr, X509 *root_crt, BIO *bio_err);
+    bool init_certificate_from_csr_and_root(X509 **new_crt, X509_REQ *csr, X509 *root_crt, BIO *bio_err, parameters *p);
     bool add_non_csr_data_to_certificate(X509 *crt, X509* root_crt, CONF *extensions,
         char *extensions_section, parameters *p, BIO *bio_err);
         bool apply_configuration(X509 *x, X509 *root_crt, CONF *conf, char *section);
@@ -104,6 +104,9 @@ bool setup(BIO **bio_err, parameters *p) {
 
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
     *bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
+    if (! load_engine_if_needed(p, *bio_err)) {
+        return false;
+    } 
     return true;
 }
 
@@ -119,7 +122,7 @@ bool make_certificate(parameters *p, BIO *bio_err) {
         return false;
     if (load_conf(&extensions, &extensions_section, bio_err, p->EXT_FILE_PATH) == false)
         return false;
-    if (init_certificate_from_csr_and_root(&new_crt, csr, root_crt, bio_err) == false) {
+    if (init_certificate_from_csr_and_root(&new_crt, csr, root_crt, bio_err, p) == false) {
         BIO_printf(bio_err, "ERROR: Could not init the new certificate from csr and root certificate.\n");
         return false;
     }
@@ -127,9 +130,6 @@ bool make_certificate(parameters *p, BIO *bio_err) {
         BIO_printf(bio_err, "ERROR: Could add extensions to the new certificate.\n");
         return false;
     }
-    if (! load_engine_if_needed(p, bio_err)) {
-        return false;
-    } 
     if (forge_sign(new_crt, root_crt, bio_err) == false) {
         BIO_printf(bio_err, "ERROR: Could not sign the new certificate.\n");
         return false;
@@ -168,7 +168,7 @@ bool load_conf(CONF **conf, char **section, BIO *bio_err, const char *path) {
     return true;
 }
 
-bool init_certificate_from_csr_and_root(X509 **new_crt, X509_REQ *csr, X509 *root_crt, BIO *bio_err) {
+bool init_certificate_from_csr_and_root(X509 **new_crt, X509_REQ *csr, X509 *root_crt, BIO *bio_err, parameters *p) {
     X509 *crt = NULL;
     X509_NAME *temp_name = NULL;
     EVP_PKEY *csr_pubkey = NULL;
@@ -209,7 +209,7 @@ bool init_certificate_from_csr_and_root(X509 **new_crt, X509_REQ *csr, X509 *roo
         return false;
     }
 
-    if (X509_REQ_verify(csr, csr_pubkey) != 1) {
+    if (!(p->LOAD_ECENGINE) && X509_REQ_verify(csr, csr_pubkey) != 1) {
         BIO_printf(bio_err, "ERROR: Error verifying signature on request.\n");
         X509_free(crt);
         return false;

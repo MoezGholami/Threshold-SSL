@@ -12,7 +12,7 @@ priv_r="rootkey.key"
 root_crt="root.crt"
 
 priv_cl="client_pr.key"
-cl_csr="../client.csr"
+cl_csr="client.csr"
 cl_ext="../client.ext"
 cl_runtime_config="cl_runtime_config.json"
 c_params="c_params.txt"
@@ -32,6 +32,8 @@ openssl ecparam -genkey -name secp384r1 > "$priv_r"
 openssl ecparam -genkey -name secp384r1 > "$priv_cl"
 cp "$priv_r" /root/.rnd
 openssl req -x509 -new -nodes -key "$priv_r" -sha256 -days 3660 -out "$root_crt" -subj "/C=IR/ST=Tehran/L=Tehran/O=Sparkling Network/OU=Security Department/CN=moezhome.ir/emailAddress=a_moezz@moezhome.ir"
+
+openssl req -new -key "$priv_cl" -sha256 -out "$cl_csr" -subj "/C=US/ST=Texas/L=Austin/O=Moez Dev/OU=Security Department/CN=moez.dev/emailAddress=a_moezz@moez.dev"
 
 cat <<EOT >> $cl_runtime_config
 {
@@ -54,12 +56,11 @@ python3 "$params_python_script" "$cl_runtime_config"
 
 rm -rf digest_pipe signature_pipe && mkfifo digest_pipe signature_pipe
 ./stub_signer.out & ./csr_signer.out "$c_params"
-cp "$corrupt_crt" "$ok_crt"
+mv "$corrupt_crt" "$ok_crt"
 
 rm -rf digest_pipe signature_pipe
 printf "1010\n2020\n" > signature_pipe && touch digest_pipe
 ./csr_signer.out "$c_params"
-cp "$corrupt_crt" "$ok_crt"
 
 openssl verify -check_ss_sig -CAfile "$root_crt" "$ok_crt" >ok_out.txt 2>&1 || true
 openssl verify -check_ss_sig -CAfile "$root_crt" "$corrupt_crt" >corrupt_out.txt 2>&1 || true

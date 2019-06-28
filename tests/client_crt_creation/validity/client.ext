@@ -5,3 +5,4 @@ subjectAltName = @alt_names
 
 [alt_names]
 DNS.1 = moez.dev
+DNS.2 = *.moez.dev
