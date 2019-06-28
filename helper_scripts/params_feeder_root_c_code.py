@@ -44,7 +44,7 @@ def main(argv):
     try:
         dump_c_parameters(obj)
     except IOError as e:
-        print("ERROR: could not write out c parameters file ", OUTPUT_FILE_PATH, file=sys.stderr)
+        print("ERROR: could not write out c parameters file ", obj['c_params_file_path'], file=sys.stderr)
         return 1
     print ("INFO: Conversion is done!")
     return 0
