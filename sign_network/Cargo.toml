@@ -1,5 +1,5 @@
 [package]
-name = "sign_network_client"
+name = "sign_network"
 version = "0.1.0"
 authors = ["MoezGholami <Ali.Moez.Gholami@GMail.COM>"]
 edition = "2018"
