@@ -5,16 +5,16 @@ authors = ["MoezGholami <Ali.Moez.Gholami@GMail.COM>"]
 edition = "2018"
 
 [[bin]]
-name = "sm_manager"
-path = "src/executables/sm_manager.rs"
+name = "hub"
+path = "src/executables/hub.rs"
 
 [[bin]]
-name = "gg18_keygen_client"
-path = "src/executables/gg18_keygen_client.rs"
+name = "keygen"
+path = "src/executables/keygen.rs"
 
 [[bin]]
-name = "gg18_sign_client"
-path = "src/executables/gg18_sign_client.rs"
+name = "sign"
+path = "src/executables/sign.rs"
 
 [dependencies]
 multi-party-ecdsa = { git = "https://github.com/KZen-networks/multi-party-ecdsa"}
