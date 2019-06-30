@@ -1,0 +1,4 @@
+* Where is the public key?
+* master the rust codes
+* use the curve library features dynamically
+* all constants should be put in a single json file. nothing else
