@@ -1,8 +1,0 @@
-{
-    "engine_path" :         "/tmp/ecengine.so",
-    "pubkey_path" :         "/tmp/pukey.key",
-    "output_cert_path" :    "./rootcert.crt",
-    "c_params_file_path":   "./.c_parameters.txt",
-    "load_ecengine" :       false,
-    "debug" :               true
-}
