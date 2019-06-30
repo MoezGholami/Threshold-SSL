@@ -6,15 +6,15 @@ edition = "2018"
 
 [[bin]]
 name = "sm_manager"
-path = "src/binaries/sm_manager.rs"
+path = "src/executables/sm_manager.rs"
 
 [[bin]]
 name = "gg18_keygen_client"
-path = "src/binaries/gg18_keygen_client.rs"
+path = "src/executables/gg18_keygen_client.rs"
 
 [[bin]]
 name = "gg18_sign_client"
-path = "src/binaries/gg18_sign_client.rs"
+path = "src/executables/gg18_sign_client.rs"
 
 [dependencies]
 multi-party-ecdsa = { git = "https://github.com/KZen-networks/multi-party-ecdsa"}
